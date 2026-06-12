@@ -457,7 +457,7 @@ MiniMem 支持三种 MCP 传输模式：
 
 | 模式 | 启动参数 | 适用场景 | 远程访问 |
 |------|----------|----------|----------|
-| Stdio | `--mcp` | 本地 AI Agent 集成（CodeBuddy/Claude Desktop） | 不支持 |
+| Stdio | `--mcp` | 本地 AI Agent 集成（Claude Desktop） | 不支持 |
 | Streamable HTTP | `--mcp-http` | 云端部署，远程 AI Agent 连接 | 支持 |
 | REST API | 默认（无参数） | Web 应用 / 自定义集成 | 支持 |
 
@@ -506,7 +506,7 @@ services:
 
 **客户端连接配置：**
 
-远程 AI Agent（如 Claude Desktop、CodeBuddy 等）的 MCP 配置示例：
+远程 AI Agent（如 Claude Desktop）的 MCP 配置示例：
 
 ```json
 {

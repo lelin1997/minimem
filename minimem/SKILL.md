@@ -3,7 +3,7 @@ name: minimem
 description: "MiniMem 个人统一记忆系统。当用户提到记忆、记住、回忆、之前说过、上次聊的等关键词时使用此 Skill。用于存储、检索、组织用户的个人记忆，包括经历、事实、观察和心智模型。通过 MCP 协议提供 add_memory、search_memory、recall_about 等工具。"
 ---
 
-# MiniMem — CodeBuddy Agent Skill
+# MiniMem — AI Agent Skill
 
 MiniMem 是一个为 AI Agent 设计的长期记忆管理系统。你可以通过 MiniMem 存储、检索、组织用户的个人记忆，包括经历、事实、观察和心智模型。
 
@@ -102,7 +102,7 @@ if (version.changed) {
 // 方式1: 获取完整上下文（Surface + 深度检索 + Hints，推荐首次使用）
 get_relevant_context({
   current_topic: "用户消息摘要或当前工作主题",
-  agent_type: "codebuddy",
+  agent_type: "minimem",
   include_hints: true
 })
 
