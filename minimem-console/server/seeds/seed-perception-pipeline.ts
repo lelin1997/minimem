@@ -147,7 +147,7 @@ async function main() {
     process.exit(1);
   }
 
-  const pipeline = await resp.json();
+  const pipeline = await resp.json() as any;
   console.log('✅ Pipeline 创建成功!');
   console.log(`   ID: ${pipeline.id}`);
   console.log(`   名称: ${pipeline.name}`);
@@ -174,7 +174,7 @@ async function main() {
     process.exit(1);
   }
 
-  const result = await runResp.json();
+  const result = await runResp.json() as any;
   console.log(`✅ 运行完成!`);
   console.log(`   状态: ${result.status}`);
   console.log(`   耗时: ${result.durationMs}ms`);
