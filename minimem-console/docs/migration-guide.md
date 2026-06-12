@@ -8,7 +8,7 @@
 
 | 分类 | 路径 | 说明 |
 |------|------|------|
-| **项目代码** | `~/codebuddy/minimem-console/` | Git 仓库（含源码） |
+| **项目代码** | `~/minimem-console/` | Git 仓库（含源码） |
 | **用户配置** | 项目根目录 `config.toml` | LLM API key、模型配置（被 .gitignore 排除） |
 | **SQLite 数据库** | `~/.minimem-console/console.db` | Pipeline 定义、运行记录、输出历史、模板 |
 | **Pipeline 报告** | `~/.minimem-console/reports/` | Pipeline 生成的文件输出 |
@@ -25,18 +25,18 @@
 tar -czf ~/minimem-data-backup.tar.gz \
   ~/.minimem-console/ \
   ~/.minimem/ \
-  ~/codebuddy/minimem-console/config.toml
+  ~/minimem-console/config.toml
 
 # 2. 确认 git 代码已推送
-cd ~/codebuddy/minimem-console && git push
+cd ~/minimem-console && git push
 ```
 
 ### 在家里电脑上恢复
 
 ```bash
 # 1. Clone 代码
-git clone <你的仓库地址> ~/codebuddy/minimem-console
-cd ~/codebuddy/minimem-console
+git clone <你的仓库地址> ~/minimem-console
+cd ~/minimem-console
 
 # 2. 安装依赖
 pnpm install
@@ -48,7 +48,7 @@ tar -xzf minimem-data-backup.tar.gz -C /
 #   ~/.minimem-console/console.db                  ← SQLite 数据库
 #   ~/.minimem-console/reports/                    ← Pipeline 输出
 #   ~/.minimem/                                    ← MiniMem 引擎数据
-#   ~/codebuddy/minimem-console/config.toml        ← 你的 LLM 配置
+#   ~/minimem-console/config.toml        ← 你的 LLM 配置
 
 # 4. 启动
 npx tsx server/index.ts
@@ -146,7 +146,7 @@ export MINIMEM_BASE_URL="http://127.0.0.1:6677"
 ```bash
 # 必须
 ls ~/.minimem-console/console.db       # SQLite 数据库
-ls ~/codebuddy/minimem-console/config.toml  # 或已配置环境变量
+ls ~/minimem-console/config.toml  # 或已配置环境变量
 
 # 可选
 ls ~/.minimem-console/reports/         # Pipeline 输出报告
