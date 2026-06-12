@@ -35,3 +35,5 @@ coverage/
 .env.local
 minimem/references/
 references/
+logs/
+*.log

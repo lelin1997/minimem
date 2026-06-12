@@ -482,7 +482,7 @@ const context = await mem.getRelevantContext({
       "args": ["-y", "@minimem/mcp-server"],
       "env": {
         "MINIMEM_DATA_DIR": "~/.minimem",
-        "MINIMEM_OWNER": "lelin"
+        "MINIMEM_OWNER": "your-name"
       }
     }
   }
