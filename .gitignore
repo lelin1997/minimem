@@ -1,5 +1,15 @@
+# macOS
 __MACOSX/
+.DS_Store
+
+# Backups
 *.zip
+*.bak
 *副本*
+
+# IDE / Dev tools
 .codebuddy/
-*.zip
+.vscode/
+.idea/
+
+# (minimem & minimem-console have their own .gitignore for node_modules etc.)

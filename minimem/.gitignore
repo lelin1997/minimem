@@ -1,8 +1,9 @@
 node_modules/
 dist/
 *.js.map
+*.d.ts.map
 
-# Data
+# Data (runtime)
 data/db/*.db
 data/db/*.db-wal
 data/db/*.db-shm
@@ -19,21 +20,21 @@ data/logs/
 # Config with secrets
 config.local.toml
 
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Test
-coverage/
-
 # Env
 .env
 .env.local
-minimem/references/
-references/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Output
+coverage/
 logs/
 *.log
+*.bak
+
+# References (runtime generated, may contain personal data)
+references/
