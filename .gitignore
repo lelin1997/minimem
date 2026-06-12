@@ -1,3 +1,5 @@
 __MACOSX/
 *.zip
 *副本*
+.codebuddy/
+*.zip
