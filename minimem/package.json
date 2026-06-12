@@ -1,0 +1,59 @@
+{
+  "name": "minimem",
+  "version": "0.1.0",
+  "description": "MiniMem — 个人统一记忆系统，AI Agent 的中央记忆服务",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts --insecure",
+    "build": "tsup src/index.ts --format esm --dts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "db:init": "tsx src/store/migrate.ts",
+    "db:reset": "tsx src/store/migrate.ts --reset",
+    "db:status": "tsx src/store/migrate.ts --status",
+    "db:rollback": "tsx src/store/migrate.ts --rollback",
+    "audit:security": "npm audit --production"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.13",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@mozilla/readability": "^0.6.0",
+    "better-sqlite3": "^11.8.1",
+    "dotenv": "^17.4.1",
+    "hono": "^4.7.6",
+    "jsdom": "^27.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.12.0",
+    "nanoid": "^5.1.5",
+    "node-cron": "^4.2.1",
+    "pdf-parse": "^2.4.5",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "toml": "^3.0.0",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/jsdom": "^28.0.1",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.14.1",
+    "@types/node-cron": "^3.0.11",
+    "@types/pdf-parse": "^1.1.5",
+    "@typescript-eslint/eslint-plugin": "^8.29.1",
+    "@typescript-eslint/parser": "^8.29.1",
+    "eslint": "^9.24.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8"
+}

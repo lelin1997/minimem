@@ -1,0 +1,1838 @@
+// ============================================================
+// MiniMem — MCP Server（30 个 Tools）
+// ============================================================
+
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { createServer as createHttpServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
+
+import { getLogger } from '../common/logger.js';
+import { getConfig } from '../config/index.js';
+import { ingestMemory, ingestMemoriesBatch, ingestMultimodal } from '../core/perception.js';
+import { searchMemory, enrichResults } from '../retrieval/search.js';
+import { lookupByPrefix } from '../store/indexes.js';
+import {
+  getExperienceById, listExperiences, countExperiences,
+} from '../store/experiences.js';
+import {
+  getActiveMentalModels, countMentalModels,
+} from '../store/mental-models.js';
+import { countWorldFacts } from '../store/world-facts.js';
+import { countObservations } from '../store/observations.js';
+import { countKnowledgePages } from '../store/knowledge-pages/page-store.js';
+import { getDb } from '../store/database.js';
+import { generateId, now } from '../common/utils.js';
+import type { SurfaceFileName, Client } from '../common/types.js';
+import { pinMemory, recordAccess, getTemperatureDistribution } from '../lifecycle/index.js';
+import { forgetAbout } from '../lifecycle/forget.js';
+import { createSnapshot, diffSnapshots } from '../version/index.js';
+import { getFullProfile, getProfileByCategory } from '../owner/profile.js';
+import { getPreference } from '../owner/preferences.js';
+import { findPersonByName, createPerson, updatePerson, deletePerson, listPersons } from '../owner/persons.js';
+import {
+  authenticateRequest,
+  authorizeToolCall,
+  auditToolCall,
+  DEFAULT_TRUSTED_CLIENT,
+} from './mcp-auth.js';
+import { AuthenticationError, AuthorizationError, MiniMemError } from '../common/errors.js';
+
+const log = getLogger('gateway:mcp');
+
+// ── 安全：SQL 列名白名单（防止列名注入攻击） ──
+const ALLOWED_UPDATE_COLUMNS: Record<string, Set<string>> = {
+  experiences: new Set(['raw_content', 'content_type', 'source', 'importance', 'tags', 'participants', 'context', 'domain', 'embedding_id']),
+  world_facts: new Set(['subject', 'predicate', 'object', 'confidence', 'valid_from', 'valid_until', 'source', 'evidence_experience_ids', 'condition_keys', 'domain']),
+  observations: new Set(['description', 'observation_type', 'supporting_fact_ids', 'contradicting_fact_ids', 'confidence', 'confidence_history', 'tags', 'drift_risk', 'domain']),
+  mental_models: new Set(['title', 'content', 'model_type', 'priority', 'scope', 'origin', 'is_active', 'domain']),
+};
+
+// ── 会话级 Client 缓存（HTTP 模式下按 sessionId 存储已认证客户端）──
+// ── 多会话 MCP：每个连接独立的 Server + Transport ──
+import type { StreamableHTTPServerTransport as StreamableHTTPServerTransportType } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+const sessionTransports = new Map<string, { transport: any; server: Server; client: Partial<Client> }>();
+const sessionClients = new Map<string, Partial<Client>>();
+
+/**
+ * 创建 MCP Server 实例
+ * @param getClient - 获取当前请求关联的 Client（HTTP 模式由外部注入，stdio 模式默认 trusted）
+ */
+export function createMCPServer(getClient?: () => Partial<Client>): Server {
+  // 默认：stdio 模式，不需要认证
+  const resolveClient = getClient ?? (() => DEFAULT_TRUSTED_CLIENT);
+  const server = new Server(
+    {
+      name: 'minimem',
+      version: '0.2.0',
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  // ── 注册工具列表 ──
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return {
+      tools: [
+        // 📝 记忆写入
+        {
+          name: 'add_memory',
+          description: '添加一条新记忆（自动分层到 L1-L4）。支持多种输入方式：\n- content: 纯文本内容\n- url: 自动抓取网页正文（Readability 提取）\n- file_path: 读取本地文件（支持 .md/.txt/.pdf/.docx/.html）\n- image_url: 通过 Vision LLM 生成图片描述\n\n示例:\n- add_memory({ content: "今天学了 TypeScript 泛型", source: "chat" })\n- add_memory({ url: "https://docs.example.com/guide", source: "import" })\n- add_memory({ file_path: "/path/to/report.pdf", source: "import" })\n- add_memory({ image_url: "https://example.com/diagram.png", source: "import" })',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              content: { type: 'string', description: '记忆内容（与 url/file_path/image_url 四选一）' },
+              url: { type: 'string', description: 'URL 地址，自动抓取网页正文（与 content/file_path/image_url 四选一）' },
+              file_path: { type: 'string', description: '本地文件路径，支持 .md/.txt/.pdf/.docx/.html（与 content/url/image_url 四选一）' },
+              image_url: { type: 'string', description: '图片 URL 或 Base64 data URI（与 content/url/file_path 四选一），支持 jpg/png/gif/webp' },
+              source: { type: 'string', description: '来源标识' },
+              content_type: { type: 'string', enum: ['conversation', 'event', 'reflection', 'decision', 'note', 'import', 'url_import', 'image_import', 'file_import'], description: '内容类型' },
+              importance: { type: 'number', description: '重要性 0-1' },
+              tags: { type: 'array', items: { type: 'string' }, description: '标签' },
+              participants: { type: 'array', items: { type: 'string' }, description: '相关人物' },
+              context: { type: 'string', description: '当前上下文' },
+              domain: { type: 'string', description: '所属领域（如 work/personal），不传默认 default' },
+              extract_mode: { type: 'string', enum: ['readability', 'full', 'summary'], description: 'URL 内容提取模式（默认 readability）' },
+            },
+            required: ['source'],
+          },
+        },
+        {
+          name: 'add_memories_batch',
+          description: '批量添加记忆',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              memories: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    content: { type: 'string' },
+                    source: { type: 'string' },
+                    content_type: { type: 'string' },
+                    tags: { type: 'array', items: { type: 'string' } },
+                    domain: { type: 'string', description: '所属领域' },
+                  },
+                  required: ['content', 'source'],
+                },
+              },
+            },
+            required: ['memories'],
+          },
+        },
+        // MINIMEM-005: 知识导入 Tool
+        {
+          name: 'import_knowledge',
+          description: '从 URL、文件或图片导入知识到 MiniMem。内容会通过 Preprocessor 提取正文/描述，经过 Dream 管线沉淀为 Knowledge Pages。\n\n支持的文件格式: .md, .txt, .pdf, .docx, .html\n\n示例:\n- import_knowledge({ source: "https://docs.example.com/guide", source_type: "url" })\n- import_knowledge({ source: "/path/to/paper.pdf", source_type: "file", tags: ["research"] })\n- import_knowledge({ source: "/path/to/report.docx", source_type: "file", context: "Q1 report" })\n- import_knowledge({ source: "/path/to/page.html", source_type: "file" })\n- import_knowledge({ source: "https://example.com/diagram.png", source_type: "image" })\n\n返回: experience_ids, content_preview, chunk_count, tags',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              source: { type: 'string', description: 'URL 地址、本地文件路径或图片 URL/Base64' },
+              source_type: { type: 'string', enum: ['url', 'file', 'image'], description: '来源类型' },
+              context: { type: 'string', description: '上下文说明（帮助 AI 理解这段知识的用途）' },
+              tags: { type: 'array', items: { type: 'string' }, description: '标签' },
+              domain: { type: 'string', description: '所属领域' },
+              extract_mode: { type: 'string', enum: ['readability', 'full', 'summary'], description: 'URL 提取模式（默认 readability）' },
+            },
+            required: ['source', 'source_type'],
+          },
+        },
+        // 🔍 检索
+        {
+          name: 'search_memory',
+          description: '语义+关键词+图遍历+时间 四路混合搜索记忆',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              query: { type: 'string', description: '自然语言查询' },
+              top_k: { type: 'number', description: '返回条数', default: 10 },
+              layers: { type: 'array', items: { type: 'string', enum: ['L1', 'L2', 'L3', 'L4'] }, description: '限定层级' },
+              time_from: { type: 'string', description: '时间起点 (ISO 8601)' },
+              time_to: { type: 'string', description: '时间终点 (ISO 8601)' },
+              domain: { type: 'string', description: '领域过滤（如 work/personal），不传搜索全部' },
+            },
+            required: ['query'],
+          },
+        },
+        {
+          name: 'recall_about',
+          description: '获取某实体的所有关联记忆',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              entity: { type: 'string', description: '实体名称（人名/项目名等）' },
+              top_k: { type: 'number', description: '返回条数', default: 10 },
+            },
+            required: ['entity'],
+          },
+        },
+        {
+          name: 'get_relevant_context',
+          description: '获取当前对话的完整上下文（Surface Files + 深层检索）。当 include_hints=true 时会同时返回记忆线索（hints），帮助快速判断是否需要深度检索。',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              current_topic: { type: 'string', description: '当前话题' },
+              agent_type: { type: 'string', description: 'Agent 类型', enum: ['codebuddy', 'openclaw', 'general'] },
+              include_hints: { type: 'boolean', description: '是否附加记忆线索 hints（默认 true）', default: true },
+            },
+            required: ['current_topic'],
+          },
+        },
+        {
+          name: 'get_memory_by_id',
+          description: '按 ID 获取单条记忆',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string', description: '记忆 ID' },
+              layer: { type: 'string', enum: ['L1', 'L2', 'L3', 'L4'], description: '记忆层级' },
+            },
+            required: ['id'],
+          },
+        },
+        {
+          name: 'list_memories',
+          description: '分页浏览记忆',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              page: { type: 'number', default: 1 },
+              page_size: { type: 'number', default: 20 },
+              source: { type: 'string' },
+              content_type: { type: 'string' },
+              domain: { type: 'string', description: '领域过滤' },
+            },
+          },
+        },
+        // 🔧 管理
+        {
+          name: 'update_memory',
+          description: '修正记忆内容/置信度/标签',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string' },
+              layer: { type: 'string', enum: ['L1', 'L2', 'L3', 'L4'] },
+              updates: { type: 'object', description: '更新字段' },
+            },
+            required: ['id', 'layer'],
+          },
+        },
+        {
+          name: 'delete_memory',
+          description: '删除单条记忆（可级联）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string' },
+              layer: { type: 'string', enum: ['L1', 'L2', 'L3', 'L4'] },
+              cascade: { type: 'boolean', default: false },
+            },
+            required: ['id'],
+          },
+        },
+        {
+          name: 'forget_about',
+          description: '遗忘关于某事的所有记忆（级联删除）。非 force 模式下 L3/L4 软标记而非物理删除',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              topic: { type: 'string', description: '要遗忘的主题/实体' },
+              confirm: { type: 'boolean', description: '二次确认' },
+              force: { type: 'boolean', default: false, description: '强制物理删除所有层（默认 false: L3 软标记+L4 停用）' },
+            },
+            required: ['topic', 'confirm'],
+          },
+        },
+        {
+          name: 'pin_memory',
+          description: '置顶/取消置顶（防止被 GC）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string' },
+              pinned: { type: 'boolean' },
+            },
+            required: ['id', 'pinned'],
+          },
+        },
+        {
+          name: 'feedback_memory',
+          description: '对记忆进行反馈（useful/incorrect/outdated）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string' },
+              feedback: { type: 'string', enum: ['useful', 'incorrect', 'outdated'] },
+              comment: { type: 'string' },
+            },
+            required: ['id', 'feedback'],
+          },
+        },
+        {
+          name: 'export_memories',
+          description: '导出记忆（JSON/Markdown）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              format: { type: 'string', enum: ['json', 'markdown'], default: 'json' },
+              layers: { type: 'array', items: { type: 'string', enum: ['L1', 'L2', 'L3', 'L4'] } },
+              domain: { type: 'string', description: '按领域过滤导出' },
+            },
+          },
+        },
+        {
+          name: 'import_memories',
+          description: '从 JSON/Markdown 导入记忆',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              data: { type: 'string', description: '导入数据' },
+              format: { type: 'string', enum: ['json', 'markdown', 'chat_log'] },
+              source: { type: 'string' },
+            },
+            required: ['data', 'format', 'source'],
+          },
+        },
+        // 👤 Owner Profile
+        {
+          name: 'get_owner_profile',
+          description: '获取用户画像',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              category: { type: 'string', description: '类别筛选' },
+            },
+          },
+        },
+        {
+          name: 'get_owner_preference',
+          description: '获取特定话题偏好',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              topic: { type: 'string', description: '话题' },
+            },
+            required: ['topic'],
+          },
+        },
+        {
+          name: 'get_person_profile',
+          description: '获取某人的画像',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              name: { type: 'string', description: '人名' },
+            },
+            required: ['name'],
+          },
+        },
+        // 📄 Surface Files
+        {
+          name: 'load_surfaces',
+          description: '按 Agent 类型批量加载 Surface Files',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              agent_type: { type: 'string', enum: ['codebuddy', 'openclaw', 'general'] },
+            },
+            required: ['agent_type'],
+          },
+        },
+        {
+          name: 'get_surface_file',
+          description: '获取单个 Surface File',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              file_name: { type: 'string', enum: ['me.md', 'soul.md', 'work.md', 'social.md', 'life.md', 'agent.md', 'context.md', 'index.md', 'insight.md'] },
+            },
+            required: ['file_name'],
+          },
+        },
+        {
+          name: 'suggest_surface_update',
+          description: '建议更新某个 Surface File',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              file_name: { type: 'string' },
+              suggestion: { type: 'string', description: '建议内容' },
+              importance: { type: 'number', default: 0.5 },
+              immediate: { type: 'boolean', default: false, description: '是否立即应用（绕过队列）' },
+            },
+            required: ['file_name', 'suggestion'],
+          },
+        },
+        // Issue-22: Surface 版本检查
+        {
+          name: 'check_surface_version',
+          description: '检查 Surface Files 是否有更新。传入上次已知的 etag，返回当前版本信息和是否有变化。',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              last_known_etag: { type: 'string', description: '上次获取的 etag（首次可传空字符串）' },
+            },
+            required: ['last_known_etag'],
+          },
+        },
+        // ⚙️ 系统操作
+        {
+          name: 'trigger_dream',
+          description: '手动触发做梦',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              phases: { type: 'array', items: { type: 'number' }, description: '要执行的阶段 [1,2,3,4]' },
+              domain: { type: 'string', description: '限定领域做梦' },
+            },
+          },
+        },
+        {
+          name: 'get_summary',
+          description: '获取日/周/月总结',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              period: { type: 'string', enum: ['daily', 'weekly', 'monthly'] },
+              date: { type: 'string', description: 'ISO 8601 日期' },
+              domain: { type: 'string', description: '按领域生成总结' },
+            },
+            required: ['period'],
+          },
+        },
+        {
+          name: 'create_snapshot',
+          description: '创建版本快照',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              label: { type: 'string', description: '快照标签' },
+            },
+          },
+        },
+        {
+          name: 'diff_memory',
+          description: '对比两个快照的差异',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              snapshot_a: { type: 'string' },
+              snapshot_b: { type: 'string' },
+            },
+            required: ['snapshot_a', 'snapshot_b'],
+          },
+        },
+        {
+          name: 'start_onboarding',
+          description: '新用户引导',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              user_name: { type: 'string' },
+            },
+          },
+        },
+        {
+          name: 'get_memory_health',
+          description: '获取系统健康状态（含温度分布、GC 状态、告警等）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              detail: { type: 'boolean', default: false, description: '是否返回完整报告（含 storage/gc/dream 详情）' },
+            },
+          },
+        },
+        // REQ-012 / TODO-017: 信念漂移健康检查
+        {
+          name: 'get_belief_health',
+          description: '获取信念健康度报告（L3 观察的漂移风险分析）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              rescan: { type: 'boolean', default: false, description: '是否先执行一次漂移扫描再返回报告' },
+              limit: { type: 'number', default: 20, description: '最多返回多少条漂移风险观察详情' },
+            },
+          },
+        },
+        // R-020: Person CRUD (与 REST 对齐)
+        {
+          name: 'list_persons',
+          description: '列出所有人设画像',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              limit: { type: 'number', default: 100 },
+            },
+          },
+        },
+        {
+          name: 'create_person',
+          description: '创建人设画像',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              name: { type: 'string', description: '人名' },
+              aliases: { type: 'array', items: { type: 'string' }, description: '别名' },
+              personality: { type: 'string', description: '性格描述' },
+            },
+            required: ['name'],
+          },
+        },
+        {
+          name: 'update_person',
+          description: '更新人设画像',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              aliases: { type: 'array', items: { type: 'string' } },
+              personality: { type: 'string' },
+            },
+            required: ['id'],
+          },
+        },
+        {
+          name: 'delete_person',
+          description: '删除人设画像',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string' },
+            },
+            required: ['id'],
+          },
+        },
+        // 🌐 MINIMEM-001: 领域管理
+        {
+          name: 'list_domains',
+          description: '列出所有已注册的领域',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {},
+          },
+        },
+        {
+          name: 'create_domain',
+          description: '创建新领域',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              name: { type: 'string', description: '领域名称（英文标识，如 work/personal/side-project）' },
+              label: { type: 'string', description: '显示名称（如 工作/个人）' },
+              description: { type: 'string', description: '领域描述' },
+              color: { type: 'string', description: 'UI 颜色标识（可选）' },
+            },
+            required: ['name'],
+          },
+        },
+        // 🧠 MINIMEM-006: Hint-Driven Recall
+        {
+          name: 'get_memory_hints',
+          description: '获取与当前话题相关的记忆线索（hints）。返回 1-3 条轻量级记忆提示，包含时间标签和摘要。适用于快速了解用户是否有相关历史记忆，无需完整检索。与 search_memory 的区别：hints 更快（≤200ms）、更轻（≤200 tokens），用于预判；search_memory 用于深度检索完整内容。',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              topic: { type: 'string', description: '当前话题或用户消息' },
+              max_hints: { type: 'number', description: '最大 hint 条数（默认 3，最大 10）' },
+              domain: { type: 'string', description: '限定检索领域' },
+            },
+            required: ['topic'],
+          },
+        },
+        // 💡 MINIMEM-002: 灵感层
+        {
+          name: 'get_inspirations',
+          description: '获取灵感列表（按状态筛选）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              status: { type: 'string', enum: ['spark', 'incubating', 'mature', 'acted', 'archived'], description: '灵感状态筛选' },
+              domain: { type: 'string', description: '按领域筛选' },
+              limit: { type: 'number', description: '返回条数', default: 20 },
+            },
+          },
+        },
+        {
+          name: 'act_on_inspiration',
+          description: '标记灵感为"已行动"，记录行动结果',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string', description: '灵感 ID' },
+              outcome: { type: 'string', description: '行动结果描述' },
+            },
+            required: ['id', 'outcome'],
+          },
+        },
+        {
+          name: 'trigger_inspiration',
+          description: '手动触发灵感引擎（不依赖 Dream 流程）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              domain: { type: 'string', description: '限定领域' },
+            },
+          },
+        },
+        {
+          name: 'rate_inspiration',
+          description: '对灵感进行评分反馈（影响后续灵感生成策略）',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string', description: '灵感 ID' },
+              rating: { type: 'number', description: '评分 1-5（1=无用, 5=非常有价值）' },
+              comment: { type: 'string', description: '评价说明' },
+            },
+            required: ['id', 'rating'],
+          },
+        },
+        {
+          name: 'dismiss_inspiration',
+          description: '删除/归档灵感。支持单条删除、批量按状态清理。被 dismiss 的灵感会作为负反馈影响后续灵感生成。',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              id: { type: 'string', description: '单条灵感 ID（与 batch_status 二选一）' },
+              batch_status: { type: 'string', enum: ['spark', 'incubating', 'mature', 'acted', 'archived'], description: '批量清理某状态下的所有灵感（与 id 二选一）' },
+              reason: { type: 'string', description: '删除原因（如 "垃圾内容"/"不相关"/"重复"）' },
+              mode: { type: 'string', enum: ['archive', 'delete'], default: 'archive', description: 'archive=软归档(默认), delete=物理删除' },
+              domain: { type: 'string', description: '批量模式下限定领域' },
+            },
+          },
+        },
+      ],
+    };
+  });
+
+  // ── 工具调用处理 ──
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    const startTime = Date.now();
+    const client = resolveClient();
+
+    log.info({ tool: name, clientId: client.id }, 'MCP tool called');
+
+    // ① 鉴权：检查 client 是否有权调用此 Tool
+    try {
+      authorizeToolCall(client, name);
+    } catch (err) {
+      const latencyMs = Date.now() - startTime;
+      auditToolCall({ client, toolName: name, args: args as Record<string, unknown>, latencyMs, error: (err as Error).message });
+      if (err instanceof AuthorizationError) {
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify({ error: (err as Error).message, code: 'FORBIDDEN' }) }],
+          isError: true,
+        };
+      }
+      throw err;
+    }
+
+    // ② 执行 Tool + 审计
+    try {
+      const result = await executeToolCall(name, args);
+      const latencyMs = Date.now() - startTime;
+      auditToolCall({ client, toolName: name, args: args as Record<string, unknown>, latencyMs });
+      return result;
+    } catch (err) {
+      const latencyMs = Date.now() - startTime;
+      auditToolCall({ client, toolName: name, args: args as Record<string, unknown>, latencyMs, error: (err as Error).message });
+      log.error({ err, tool: name }, 'Tool execution failed');
+      // 安全：只返回自定义错误的 message，隐藏未知错误的内部信息
+      const safeMessage = err instanceof MiniMemError
+        ? (err as MiniMemError).message
+        : 'Internal server error';
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify({ error: safeMessage, code: err instanceof MiniMemError ? (err as MiniMemError).code : 'INTERNAL_ERROR' }) }],
+        isError: true,
+      };
+    }
+  });
+
+  return server;
+}
+
+/**
+ * 执行 MCP Tool 调用（纯业务逻辑，不含鉴权/审计）
+ */
+async function executeToolCall(name: string, args: Record<string, unknown> | undefined): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }> {
+    try {
+      switch (name) {
+        case 'add_memory': {
+          const params = args as { content?: string; url?: string; file_path?: string; image_url?: string; source: string; content_type?: string; importance?: number; tags?: string[]; participants?: string[]; context?: string; domain?: string; extract_mode?: string };
+
+          // MINIMEM-005: URL 输入走多模态路径
+          if (params.url) {
+            const multiResult = await ingestMultimodal({
+              url: params.url,
+              source: params.source,
+              content_type: params.content_type as any,
+              importance: params.importance,
+              tags: params.tags,
+              participants: params.participants,
+              context: params.context,
+              domain: params.domain,
+              extract_mode: (params.extract_mode as any) ?? 'readability',
+            });
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                memory_id: multiResult.results[0]?.experience.id,
+                memory_ids: multiResult.results.map(r => r.experience.id),
+                layer: 'L1',
+                importance: multiResult.results[0]?.importance,
+                source_info: multiResult.source_info,
+              }) }],
+            };
+          }
+
+          // MINIMEM-005 Phase 2: 文件路径输入走多模态路径
+          if (params.file_path) {
+            const multiResult = await ingestMultimodal({
+              file_path: params.file_path,
+              source: params.source,
+              content_type: params.content_type as any,
+              importance: params.importance,
+              tags: params.tags,
+              participants: params.participants,
+              context: params.context,
+              domain: params.domain,
+            });
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                memory_id: multiResult.results[0]?.experience.id,
+                memory_ids: multiResult.results.map(r => r.experience.id),
+                layer: 'L1',
+                importance: multiResult.results[0]?.importance,
+                source_info: multiResult.source_info,
+              }) }],
+            };
+          }
+
+          // MINIMEM-005 Phase 3: 图片输入走多模态路径
+          if (params.image_url) {
+            const multiResult = await ingestMultimodal({
+              image_url: params.image_url,
+              source: params.source,
+              content_type: params.content_type as any,
+              importance: params.importance,
+              tags: params.tags,
+              participants: params.participants,
+              context: params.context,
+              domain: params.domain,
+            });
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                memory_id: multiResult.results[0]?.experience.id,
+                memory_ids: multiResult.results.map(r => r.experience.id),
+                layer: 'L1',
+                importance: multiResult.results[0]?.importance,
+                source_info: multiResult.source_info,
+              }) }],
+            };
+          }
+
+          // 纯文本原有路径
+          if (!params.content) {
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Either content, url, file_path, or image_url must be provided' }) }],
+              isError: true,
+            };
+          }
+
+          const result = await ingestMemory({
+            content: params.content,
+            source: params.source,
+            content_type: params.content_type as any,
+            importance: params.importance,
+            tags: params.tags,
+            participants: params.participants,
+            context: params.context,
+            domain: params.domain,
+          });
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ memory_id: result.experience.id, layer: 'L1', importance: result.importance, entities: result.entities.length, domain: result.experience.domain }) }],
+          };
+        }
+
+        case 'add_memories_batch': {
+          const params = args as { memories: Array<{ content: string; source: string; content_type?: string; tags?: string[]; domain?: string }> };
+          const results = await ingestMemoriesBatch(params.memories.map(m => ({
+            content: m.content,
+            source: m.source,
+            content_type: m.content_type as any,
+            tags: m.tags,
+            domain: m.domain,
+          })));
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ added: results.length, memory_ids: results.map(r => r.experience.id) }) }],
+          };
+        }
+
+        // MINIMEM-005: 知识导入
+        case 'import_knowledge': {
+          const params = args as { source: string; source_type: 'url' | 'file' | 'image'; context?: string; tags?: string[]; domain?: string; extract_mode?: string };
+
+          if (params.source_type === 'url') {
+            const multiResult = await ingestMultimodal({
+              url: params.source,
+              source: 'knowledge-import',
+              context: params.context,
+              tags: params.tags,
+              domain: params.domain,
+              extract_mode: (params.extract_mode as any) ?? 'readability',
+            });
+
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                experience_ids: multiResult.results.map(r => r.experience.id),
+                content_preview: multiResult.results[0]?.experience.raw_content.slice(0, 300) ?? '',
+                chunk_count: multiResult.source_info.chunk_count ?? 1,
+                title: multiResult.source_info.title ?? null,
+                tags: params.tags ?? [],
+                source_type: 'url',
+              }) }],
+            };
+          } else if (params.source_type === 'file') {
+            const multiResult = await ingestMultimodal({
+              file_path: params.source,
+              source: 'knowledge-import',
+              context: params.context,
+              tags: params.tags,
+              domain: params.domain,
+            });
+
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                experience_ids: multiResult.results.map(r => r.experience.id),
+                content_preview: multiResult.results[0]?.experience.raw_content.slice(0, 300) ?? '',
+                chunk_count: multiResult.source_info.chunk_count ?? 1,
+                file_name: multiResult.source_info.title ?? null,
+                tags: params.tags ?? [],
+                source_type: 'file',
+              }) }],
+            };
+          } else if (params.source_type === 'image') {
+            const multiResult = await ingestMultimodal({
+              image_url: params.source,
+              source: 'knowledge-import',
+              context: params.context,
+              tags: params.tags,
+              domain: params.domain,
+            });
+
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                experience_ids: multiResult.results.map(r => r.experience.id),
+                content_preview: multiResult.results[0]?.experience.raw_content.slice(0, 300) ?? '',
+                chunk_count: 1,
+                tags: params.tags ?? [],
+                source_type: 'image',
+              }) }],
+            };
+          }
+
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: `Unsupported source_type: ${params.source_type}` }) }],
+            isError: true,
+          };
+        }
+
+        case 'search_memory': {
+          const params = args as { query: string; top_k?: number; layers?: string[]; time_from?: string; time_to?: string; domain?: string };
+          const response = await searchMemory({
+            query: params.query,
+            top_k: params.top_k,
+            layers: params.layers as any,
+            time_from: params.time_from,
+            time_to: params.time_to,
+            domain: params.domain,
+          });
+          // searchMemory 内部已完成 enrichResults，无需重复调用
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              results: response.results.map(r => ({ id: r.id, layer: r.layer, content: r.content, score: r.score, strategy: r.source_strategy })),
+              direct_answer: response.direct_answer,
+              total: response.total_candidates,
+            }) }],
+          };
+        }
+
+        case 'recall_about': {
+          const params = args as { entity: string; top_k?: number };
+          const topK = params.top_k ?? 10;
+
+          // 精确召回：通过条件索引查找所有前缀类型
+          const ENTITY_PREFIXES = ['person', 'topic', 'project', 'technology', 'organization', 'place', 'event'];
+          const conditionHits: Array<{ id: string; layer: string }> = [];
+          for (const prefix of ENTITY_PREFIXES) {
+            const hits = lookupByPrefix(`${prefix}:${params.entity}`);
+            for (const hit of hits) {
+              conditionHits.push({ id: hit.memory_id, layer: hit.memory_type });
+            }
+          }
+
+          // 语义召回：通过 searchMemory 做自然语言查询
+          const response = await searchMemory({
+            query: `关于 ${params.entity} 的所有信息`,
+            top_k: topK,
+          });
+
+          // 合并去重：条件索引结果（高分 0.95）+ 语义结果
+          const mergedMap = new Map<string, any>();
+          for (const hit of conditionHits) {
+            mergedMap.set(hit.id, { id: hit.id, layer: hit.layer, content: '', score: 0.95, source_strategy: 'condition' });
+          }
+          for (const r of response.results) {
+            const existing = mergedMap.get(r.id);
+            if (!existing || r.score > existing.score) {
+              mergedMap.set(r.id, r);
+            }
+          }
+
+          // 排序取 topK，enrichResults 补全内容
+          const merged = Array.from(mergedMap.values())
+            .sort((a: any, b: any) => b.score - a.score)
+            .slice(0, topK);
+          const enriched = enrichResults(merged);
+
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ entity: params.entity, memories: enriched }) }],
+          };
+        }
+
+        case 'get_relevant_context': {
+          const params = args as { current_topic: string; agent_type?: string; top_k?: number; include_hints?: boolean };
+          const agentType = params.agent_type ?? 'general';
+          const includeHints = params.include_hints !== false; // 默认 true
+
+          // REQ-017: 可配置 top_k 和 token budget
+          const ctxCfg = getConfig().context;
+          const topK = params.top_k ?? ctxCfg?.default_top_k ?? 5;
+          const maxTotalTokens = ctxCfg?.max_total_tokens ?? 8000;
+
+          // 加载 Surface Files
+          const surfaceFiles = loadSurfacesForAgent(agentType);
+
+          // 计算 Surface Files 占用的 token 预算（粗估: 1 token ≈ 2 字符 for 中文，4 字符 for 英文）
+          let surfaceTokens = 0;
+          for (const content of Object.values(surfaceFiles)) {
+            surfaceTokens += Math.ceil(content.length / 2);
+          }
+
+          // 剩余 token 预算留给深层检索结果
+          const remainingBudget = Math.max(1000, maxTotalTokens - surfaceTokens);
+
+          // 深层检索（searchMemory 内部已完成 enrichResults）
+          const response = await searchMemory({ query: params.current_topic, top_k: topK });
+
+          // Token budget 裁剪：从高分到低分累加，超出 budget 则截断
+          let usedTokens = 0;
+          const trimmedResults: typeof response.results = [];
+          for (const r of response.results) {
+            const estimatedTokens = Math.ceil((r.content?.length ?? 0) / 2);
+            if (usedTokens + estimatedTokens > remainingBudget && trimmedResults.length > 0) break;
+            trimmedResults.push(r);
+            usedTokens += estimatedTokens;
+          }
+
+          // MINIMEM-006: 附加 hints
+          let hints: Array<{ summary: string; time_label: string; recall_query: string; relevance_score: number }> | null = null;
+          if (includeHints) {
+            try {
+              const { HintsEngine } = await import('../recall/hints-engine.js');
+              const recallConfig = (getConfig() as any).recall?.hints;
+              const engine = new HintsEngine(recallConfig);
+              const hintResponse = await engine.generateHints({
+                message: params.current_topic,
+                max_hints: 3,
+              });
+              if (hintResponse.hints.length > 0) {
+                hints = hintResponse.hints.map(h => ({
+                  summary: h.summary,
+                  time_label: h.time_label,
+                  recall_query: h.recall_query,
+                  relevance_score: h.relevance_score,
+                }));
+              }
+            } catch (err) {
+              log.warn({ err }, 'Hints generation failed in get_relevant_context (non-critical)');
+            }
+          }
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({
+                surface_files: surfaceFiles,
+                deep_results: trimmedResults.map(r => ({ id: r.id, layer: r.layer, content: r.content, score: r.score })),
+                direct_answer: response.direct_answer,
+                hints,
+                token_budget: { max: maxTotalTokens, surface: surfaceTokens, deep: usedTokens, trimmed: response.results.length - trimmedResults.length },
+              }),
+            }],
+          };
+        }
+
+        case 'get_memory_by_id': {
+          const params = args as { id: string; layer?: string };
+          const exp = getExperienceById(params.id);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(exp ?? { error: 'Not found' }) }],
+          };
+        }
+
+        case 'list_memories': {
+          const params = args as { page?: number; page_size?: number; source?: string; content_type?: string; domain?: string };
+          const result = listExperiences({
+            page: params.page ?? 1,
+            page_size: params.page_size ?? 20,
+            source: params.source,
+            content_type: params.content_type,
+            domain: params.domain,
+          });
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+          };
+        }
+
+        case 'load_surfaces': {
+          const params = args as { agent_type: string };
+          const files = loadSurfacesForAgent(params.agent_type);
+          // Issue-22: 附加 etag 版本信息
+          const { getSurfacesVersionInfo } = await import('../surface/index.js');
+          const versionInfo = getSurfacesVersionInfo();
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              ...files,
+              _etag: versionInfo.etag,
+              _surfaces_version: versionInfo.surfaces_version,
+            }) }],
+          };
+        }
+
+        case 'get_surface_file': {
+          const params = args as { file_name: string };
+          const db = getDb();
+          const file = db.prepare('SELECT * FROM surface_files WHERE file_name = ?').get(params.file_name);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(file ?? { error: 'Not found' }) }],
+          };
+        }
+
+        case 'suggest_surface_update': {
+          const params = args as { file_name: string; suggestion: string; importance?: number; immediate?: boolean };
+
+          // REQ-007: immediate 模式 — 立即应用，绕过队列
+          if (params.immediate) {
+            const { smartUpdateSurfaceFile } = await import('../surface/index.js');
+            await smartUpdateSurfaceFile(params.file_name as SurfaceFileName, params.suggestion, 'immediate update');
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({ applied: true, immediate: true }) }],
+            };
+          }
+
+          // 默认：加入队列等待 Dream Phase 4 或 surface:auto-process 定时任务处理
+          const db = getDb();
+          db.prepare(`
+            INSERT INTO surface_update_queue (id, file_name, suggestion, importance, status, created_at)
+            VALUES (?, ?, ?, ?, 'pending', ?)
+          `).run(generateId(), params.file_name, params.suggestion, params.importance ?? 0.5, now());
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ queued: true }) }],
+          };
+        }
+
+        // Issue-22: Surface 版本检查
+        case 'check_surface_version': {
+          const params = args as { last_known_etag: string };
+          const { getSurfacesVersionInfo } = await import('../surface/index.js');
+          const versionInfo = getSurfacesVersionInfo();
+          const changed = params.last_known_etag !== versionInfo.etag;
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              changed,
+              etag: versionInfo.etag,
+              surfaces_version: versionInfo.surfaces_version,
+              last_updated: versionInfo.last_updated,
+            }) }],
+          };
+        }
+
+        case 'update_memory': {
+          const params = args as { id: string; layer: string; updates?: Record<string, unknown> };
+          const db = getDb();
+          const layer = params.layer ?? 'L1';
+          const updates = params.updates ?? {};
+          const tableMap: Record<string, string> = { L1: 'experiences', L2: 'world_facts', L3: 'observations', L4: 'mental_models' };
+          const table = tableMap[layer];
+
+          if (!table) {
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Invalid layer' }) }], isError: true };
+          }
+
+          const sets: string[] = ['updated_at = ?'];
+          const values: unknown[] = [now()];
+
+          const allowedCols = ALLOWED_UPDATE_COLUMNS[table];
+          for (const [key, val] of Object.entries(updates)) {
+            if (!allowedCols?.has(key)) continue;  // 白名单过滤，拒绝非法列名
+            sets.push(`${key} = ?`);
+            values.push(typeof val === 'object' ? JSON.stringify(val) : val);
+          }
+          values.push(params.id);
+          db.prepare(`UPDATE ${table} SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ updated: true, id: params.id }) }] };
+        }
+
+        case 'delete_memory': {
+          const params = args as { id: string; layer?: string; cascade?: boolean };
+          const db = getDb();
+          const layer = params.layer ?? 'L1';
+          const tableMap: Record<string, string> = { L1: 'experiences', L2: 'world_facts', L3: 'observations', L4: 'mental_models' };
+          const table = tableMap[layer];
+
+          if (!table) {
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Invalid layer' }) }], isError: true };
+          }
+
+          db.transaction(() => {
+            // 创建墓碑
+            db.prepare(`INSERT INTO memory_tombstones (id, original_id, original_type, reason, created_at) VALUES (?, ?, ?, 'manual', ?)`)
+              .run(generateId(), params.id, layer, now());
+
+            // 删除记忆
+            db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(params.id);
+
+            // 级联清理
+            if (params.cascade) {
+              db.prepare('DELETE FROM condition_index WHERE memory_id = ?').run(params.id);
+              db.prepare('DELETE FROM memory_fts WHERE memory_id = ?').run(params.id);
+              db.prepare('DELETE FROM memory_temperature WHERE memory_id = ?').run(params.id);
+              db.prepare('DELETE FROM memory_links WHERE source_id = ? OR target_id = ?').run(params.id, params.id);
+            }
+          })();
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ deleted: true, id: params.id }) }] };
+        }
+
+        case 'forget_about': {
+          const params = args as { topic: string; confirm: boolean; force?: boolean };
+          const forceMode = params.force ?? false;
+          if (!params.confirm) {
+            // Dry run
+            const dryResult = forgetAbout(params.topic, true, forceMode);
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ dry_run: true, would_delete: dryResult.deleted, confirm_required: true, force: forceMode }) }] };
+          }
+          const result = forgetAbout(params.topic, false, forceMode);
+          return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
+        }
+
+        case 'pin_memory': {
+          const params = args as { id: string; pinned: boolean };
+          pinMemory(params.id, 'L1', params.pinned);
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ pinned: params.pinned, id: params.id }) }] };
+        }
+
+        case 'feedback_memory': {
+          const params = args as { id: string; feedback: string; comment?: string };
+          const db = getDb();
+          const timestamp = now();
+
+          // 根据反馈类型调整
+          if (params.feedback === 'useful') {
+            recordAccess(params.id, 'L1');
+          } else if (params.feedback === 'incorrect') {
+            db.prepare("UPDATE experiences SET importance = MAX(0, importance - 0.3), updated_at = ? WHERE id = ?").run(timestamp, params.id);
+          } else if (params.feedback === 'outdated') {
+            db.prepare("UPDATE experiences SET importance = MAX(0, importance - 0.2), updated_at = ? WHERE id = ?").run(timestamp, params.id);
+          }
+
+          // REQ-013: 反馈传播 — incorrect/outdated 沿编译链传播到下游 L2/L3/L4
+          let propagated = 0;
+          if (params.feedback === 'incorrect' || params.feedback === 'outdated') {
+            try {
+              const { propagateFeedback } = await import('../core/feedback-propagator.js');
+              propagated = propagateFeedback(params.id, params.feedback as 'incorrect' | 'outdated');
+            } catch (err) {
+              log.warn({ err, memoryId: params.id }, 'Feedback propagation failed (non-critical)');
+            }
+          }
+
+          // 加入编译队列以供做梦时处理
+          db.prepare(`INSERT INTO compile_queue (id, source_type, content, target_page, priority, status, created_at) VALUES (?, 'feedback', ?, NULL, 5, 'pending', ?)`)
+            .run(generateId(), JSON.stringify({ id: params.id, feedback: params.feedback, comment: params.comment }), timestamp);
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ feedback_recorded: true, id: params.id, feedback: params.feedback, propagated_to: propagated }) }] };
+        }
+
+        case 'export_memories': {
+          const params = args as { format?: string; layers?: string[]; domain?: string };
+          const db = getDb();
+          const format = params.format ?? 'json';
+          const layers = params.layers ?? ['L1', 'L2', 'L3', 'L4'];
+
+          // MINIMEM-001: 支持按领域过滤导出
+          const domainCondition = params.domain ? " AND domain = ?" : '';
+          const domainValues = params.domain ? [params.domain] : [];
+
+          const data: Record<string, unknown[]> = {};
+          if (layers.includes('L1')) data.experiences = db.prepare(`SELECT * FROM experiences WHERE branch = 'main'${domainCondition}`).all(...domainValues);
+          if (layers.includes('L2')) data.world_facts = db.prepare(`SELECT * FROM world_facts WHERE branch = 'main'${domainCondition}`).all(...domainValues);
+          if (layers.includes('L3')) data.observations = db.prepare(`SELECT * FROM observations WHERE branch = 'main'${domainCondition}`).all(...domainValues);
+          if (layers.includes('L4')) data.mental_models = db.prepare(`SELECT * FROM mental_models WHERE branch = 'main'${domainCondition}`).all(...domainValues);
+
+          if (format === 'markdown') {
+            let md = '# MiniMem Export\n\n';
+            for (const [layer, items] of Object.entries(data)) {
+              md += `## ${layer}\n\n`;
+              for (const item of items as any[]) {
+                md += `- ${item.raw_content || item.description || item.subject || item.title}\n`;
+              }
+              md += '\n';
+            }
+            return { content: [{ type: 'text' as const, text: md }] };
+          }
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify(data) }] };
+        }
+
+        case 'import_memories': {
+          const params = args as { data: string; format: string; source: string };
+
+          if (params.format === 'json') {
+            const memories = JSON.parse(params.data) as Array<{ content: string; tags?: string[] }>;
+            const results = await ingestMemoriesBatch(
+              memories.map(m => ({ content: m.content, source: params.source, tags: m.tags }))
+            );
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ imported: results.length }) }] };
+          } else if (params.format === 'chat_log' || params.format === 'markdown') {
+            // 按行分割作为独立记忆
+            const lines = params.data.split('\n').filter(l => l.trim().length > 10);
+            const results = await ingestMemoriesBatch(
+              lines.map(line => ({ content: line.trim(), source: params.source, content_type: 'import' as const }))
+            );
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ imported: results.length }) }] };
+          }
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Unsupported format' }) }], isError: true };
+        }
+
+        case 'get_owner_profile': {
+          const params = args as { category?: string };
+          const profile = params.category ? getProfileByCategory(params.category) : getFullProfile();
+          return { content: [{ type: 'text' as const, text: JSON.stringify(profile) }] };
+        }
+
+        case 'get_owner_preference': {
+          const params = args as { topic: string };
+          const pref = getPreference(params.topic);
+          return { content: [{ type: 'text' as const, text: JSON.stringify(pref ?? { topic: params.topic, found: false }) }] };
+        }
+
+        case 'get_person_profile': {
+          const params = args as { name: string };
+          const person = findPersonByName(params.name);
+          return { content: [{ type: 'text' as const, text: JSON.stringify(person ?? { name: params.name, found: false }) }] };
+        }
+
+        case 'trigger_dream': {
+          const params = args as { mode?: string; phases?: number[]; domain?: string };
+          const { triggerDream, getDreamReportMarkdown } = await import('../modules/dream/dream-engine.js');
+          const session = await triggerDream({
+            mode: (params.mode === 'weekly' ? 'weekly' : 'daily'),
+            phases: params.phases,
+            domain: params.domain,
+          });
+          const markdown = getDreamReportMarkdown(session);
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ session_id: session.session_id, status: session.status, report_markdown: markdown }) }] };
+        }
+
+        case 'get_summary': {
+          const params = args as { period: string; date?: string; domain?: string };
+          const db = getDb();
+          const targetDate = params.date ?? new Date().toISOString().slice(0, 10);
+
+          let since: string;
+          if (params.period === 'daily') {
+            since = `${targetDate}T00:00:00.000Z`;
+          } else if (params.period === 'weekly') {
+            const d = new Date(targetDate);
+            d.setDate(d.getDate() - 7);
+            since = d.toISOString();
+          } else {
+            const d = new Date(targetDate);
+            d.setMonth(d.getMonth() - 1);
+            since = d.toISOString();
+          }
+
+          // MINIMEM-001: 支持按领域过滤统计
+          const domainCondition = params.domain ? ' AND domain = ?' : '';
+          const domainValues = params.domain ? [params.domain] : [];
+
+          const memories = db.prepare(
+            `SELECT COUNT(*) as count FROM experiences WHERE branch = 'main' AND created_at >= ?${domainCondition}`
+          ).get(since, ...domainValues) as { count: number };
+
+          const facts = db.prepare(
+            `SELECT COUNT(*) as count FROM world_facts WHERE branch = 'main' AND created_at >= ?${domainCondition}`
+          ).get(since, ...domainValues) as { count: number };
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({
+            period: params.period,
+            date: targetDate,
+            since,
+            domain: params.domain ?? 'all',
+            stats: { new_memories: memories.count, new_facts: facts.count },
+          }) }] };
+        }
+
+        case 'create_snapshot': {
+          const params = args as { label?: string };
+          const snapshot = createSnapshot({ label: params.label, trigger: 'manual' });
+          return { content: [{ type: 'text' as const, text: JSON.stringify(snapshot) }] };
+        }
+
+        case 'diff_memory': {
+          const params = args as { snapshot_a: string; snapshot_b: string };
+          const diff = diffSnapshots(params.snapshot_a, params.snapshot_b);
+          return { content: [{ type: 'text' as const, text: JSON.stringify(diff) }] };
+        }
+
+        case 'start_onboarding': {
+          const params = args as { user_name?: string };
+          const welcomeMsg = params.user_name
+            ? `欢迎 ${params.user_name}！我是你的个人记忆系统 MiniMem。我会帮你记住重要的事情、追踪人际关系、总结工作进展。现在你可以开始和我对话了。`
+            : '欢迎使用 MiniMem！我是你的个人记忆系统。请先告诉我你的名字，我好开始为你建档。';
+
+          if (params.user_name) {
+            const { setProfileEntry } = await import('../owner/profile.js');
+            setProfileEntry('identity.name', params.user_name, { category: 'identity', confidence: 1.0, source: 'onboarding' });
+          }
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ message: welcomeMsg, onboarding: true }) }] };
+        }
+
+        case 'get_memory_health': {
+          const params = args as { detail?: boolean };
+          // REQ-022: 暴露完整健康检查
+          try {
+            const { checkHealth } = await import('../lifecycle/health.js');
+            const report = checkHealth();
+            if (params.detail) {
+              return { content: [{ type: 'text' as const, text: JSON.stringify(report) }] };
+            }
+            // 简洁模式：只返回核心指标
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                status: report.status,
+                layers: report.layers,
+                temperature_distribution: report.temperature_distribution,
+                alerts: report.alerts,
+                version: '0.2.0',
+              }) }],
+            };
+          } catch (err) {
+            // fallback 到旧逻辑
+            log.warn({ err }, 'checkHealth failed, falling back to basic stats');
+            const dist = getTemperatureDistribution();
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                layers: {
+                  L1: countExperiences(),
+                  L2: countWorldFacts(),
+                  L3: countObservations(),
+                  L4: countMentalModels(),
+                  knowledge_pages: countKnowledgePages(),
+                },
+                temperature_distribution: dist,
+                status: 'healthy',
+                version: '0.2.0',
+              }) }],
+            };
+          }
+        }
+
+        // REQ-012 / TODO-017: 信念漂移健康检查
+        case 'get_belief_health': {
+          const params = args as { rescan?: boolean; limit?: number };
+          const { scanDrift, getBeliefHealth } = await import('../core/drift-detector.js');
+
+          // 可选：先执行一次漂移扫描
+          let scanResult = null;
+          if (params.rescan) {
+            scanResult = scanDrift();
+          }
+
+          const report = getBeliefHealth(params.limit ?? 20);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              ...report,
+              scan_result: scanResult,
+            }) }],
+          };
+        }
+
+        // R-020: Person CRUD
+        case 'list_persons': {
+          const params = args as { limit?: number };
+          const persons = listPersons(params.limit ?? 100);
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ persons }) }] };
+        }
+
+        case 'create_person': {
+          const params = args as { name: string; aliases?: string[]; personality?: string };
+          const person = createPerson(params);
+          return { content: [{ type: 'text' as const, text: JSON.stringify(person) }] };
+        }
+
+        case 'update_person': {
+          const params = args as { id: string; name?: string; aliases?: string[]; personality?: string };
+          const { id: personId, ...updates } = params;
+          const updated = updatePerson(personId, updates);
+          if (!updated) return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Person not found' }) }], isError: true };
+          return { content: [{ type: 'text' as const, text: JSON.stringify(updated) }] };
+        }
+
+        case 'delete_person': {
+          const params = args as { id: string };
+          const success = deletePerson(params.id);
+          if (!success) return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Person not found' }) }], isError: true };
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ deleted: true, id: params.id }) }] };
+        }
+
+        // MINIMEM-001: 领域管理
+        case 'list_domains': {
+          const db = getDb();
+          const domains = db.prepare('SELECT * FROM domains ORDER BY name').all();
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ domains }) }] };
+        }
+
+        case 'create_domain': {
+          const params = args as { name: string; label?: string; description?: string; color?: string };
+
+          // 校验名称格式：仅允许小写字母、数字、连字符
+          if (!/^[a-z0-9][a-z0-9-]*$/.test(params.name)) {
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Domain name must be lowercase alphanumeric with hyphens, starting with a letter or number' }) }], isError: true };
+          }
+
+          const db = getDb();
+          const timestamp = now();
+
+          // 检查是否已存在
+          const existing = db.prepare('SELECT 1 FROM domains WHERE name = ?').get(params.name);
+          if (existing) {
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `Domain '${params.name}' already exists` }) }], isError: true };
+          }
+
+          db.prepare(
+            'INSERT INTO domains (name, label, description, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+          ).run(params.name, params.label ?? null, params.description ?? null, params.color ?? null, timestamp, timestamp);
+
+          const domain = db.prepare('SELECT * FROM domains WHERE name = ?').get(params.name);
+          return { content: [{ type: 'text' as const, text: JSON.stringify(domain) }] };
+        }
+
+        // 🧠 MINIMEM-006: Hint-Driven Recall MCP Tool
+        case 'get_memory_hints': {
+          const params = args as { topic: string; max_hints?: number; domain?: string };
+          const { HintsEngine } = await import('../recall/hints-engine.js');
+          const config = getConfig();
+          const recallConfig = (config as any).recall?.hints;
+
+          const engine = new HintsEngine(recallConfig);
+          const response = await engine.generateHints({
+            message: params.topic,
+            max_hints: params.max_hints,
+            domain: params.domain,
+          });
+
+          // 格式化为人类可读的 hints 文本
+          if (response.hints.length === 0) {
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({ hints: [], message: '没有找到相关记忆线索' }) }],
+            };
+          }
+
+          const hintsText = response.hints.map((h, i) =>
+            `⚡ ${h.time_label}：${h.summary}${h.recall_query ? `\n   → 深入了解: search_memory({ query: "${h.recall_query}" })` : ''}`
+          ).join('\n');
+
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              hints: response.hints,
+              hints_text: hintsText,
+              meta: response.meta,
+            }) }],
+          };
+        }
+
+        // 💡 MINIMEM-002: 灵感层 MCP Tools
+
+        case 'get_inspirations': {
+          const params = args as { status?: string; domain?: string; limit?: number };
+          const db = getDb();
+          const limit = params.limit ?? 20;
+
+          let sql = `SELECT id, title, content, hypothesis, origin, status, confidence, actionability, novelty,
+                     incubation_count, domain, created_at, updated_at, expires_at
+                     FROM inspirations WHERE branch = 'main'`;
+          const values: unknown[] = [];
+
+          if (params.status) {
+            sql += ' AND status = ?';
+            values.push(params.status);
+          }
+          if (params.domain) {
+            sql += ' AND domain = ?';
+            values.push(params.domain);
+          }
+
+          sql += ' ORDER BY CASE status WHEN \'mature\' THEN 0 WHEN \'incubating\' THEN 1 WHEN \'spark\' THEN 2 WHEN \'acted\' THEN 3 ELSE 4 END, confidence DESC LIMIT ?';
+          values.push(limit);
+
+          const inspirations = db.prepare(sql).all(...values);
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ inspirations, count: (inspirations as unknown[]).length }) }] };
+        }
+
+        case 'act_on_inspiration': {
+          const params = args as { id: string; outcome: string };
+          const db = getDb();
+          const timestamp = now();
+
+          // 验证灵感存在
+          const insp = db.prepare('SELECT id, status, title FROM inspirations WHERE id = ?').get(params.id) as { id: string; status: string; title: string } | undefined;
+          if (!insp) {
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Inspiration not found' }) }], isError: true };
+          }
+
+          // 更新状态为 acted
+          db.prepare(`
+            UPDATE inspirations SET status = 'acted', acted_outcome = ?, updated_at = ?
+            WHERE id = ?
+          `).run(params.outcome, timestamp, params.id);
+
+          // 记录到 compile_queue 作为反馈信号
+          db.prepare(`
+            INSERT INTO compile_queue (id, source_type, content, target_page, priority, status, created_at)
+            VALUES (?, 'inspiration', ?, NULL, 6, 'pending', ?)
+          `).run(generateId(), JSON.stringify({ inspiration_id: params.id, title: insp.title, outcome: params.outcome, action: 'acted' }), timestamp);
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ acted: true, id: params.id, title: insp.title }) }] };
+        }
+
+        case 'trigger_inspiration': {
+          const params = args as { domain?: string };
+          const { runInspirationEngine } = await import('../modules/dream/inspiration-engine.js');
+          const result = await runInspirationEngine({
+            dreamResult: null,
+            mode: 'daily',
+            domain: params.domain,
+          });
+          return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
+        }
+
+        case 'rate_inspiration': {
+          const params = args as { id: string; rating: number; comment?: string };
+          const db = getDb();
+          const timestamp = now();
+
+          // 校验评分范围
+          const rating = Math.min(5, Math.max(1, Math.round(params.rating)));
+
+          // 验证灵感存在
+          const insp = db.prepare('SELECT id, confidence, actionability FROM inspirations WHERE id = ?').get(params.id) as { id: string; confidence: number; actionability: number } | undefined;
+          if (!insp) {
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Inspiration not found' }) }], isError: true };
+          }
+
+          // 根据评分调整 confidence
+          // rating 1-2: 降低信心; 3: 不变; 4-5: 提升信心
+          const confidenceDelta = (rating - 3) * 0.1;
+          const newConfidence = Math.min(1, Math.max(0, insp.confidence + confidenceDelta));
+
+          db.prepare(`
+            UPDATE inspirations SET confidence = ?, updated_at = ?
+            WHERE id = ?
+          `).run(newConfidence, timestamp, params.id);
+
+          // 记录反馈到 compile_queue
+          db.prepare(`
+            INSERT INTO compile_queue (id, source_type, content, target_page, priority, status, created_at)
+            VALUES (?, 'feedback', ?, NULL, 4, 'pending', ?)
+          `).run(generateId(), JSON.stringify({ inspiration_id: params.id, rating, comment: params.comment, type: 'inspiration_rating' }), timestamp);
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ rated: true, id: params.id, rating, new_confidence: newConfidence }) }] };
+        }
+
+        case 'dismiss_inspiration': {
+          const params = args as { id?: string; batch_status?: string; reason?: string; mode?: string; domain?: string };
+          const db = getDb();
+          const timestamp = now();
+          const mode = params.mode ?? 'archive';
+          const reason = params.reason ?? 'user_dismissed';
+
+          // 单条模式
+          if (params.id) {
+            const insp = db.prepare('SELECT id, title, status FROM inspirations WHERE id = ?').get(params.id) as { id: string; title: string; status: string } | undefined;
+            if (!insp) {
+              return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Inspiration not found' }) }], isError: true };
+            }
+
+            if (mode === 'delete') {
+              db.prepare('DELETE FROM inspirations WHERE id = ?').run(params.id);
+            } else {
+              db.prepare("UPDATE inspirations SET status = 'archived', updated_at = ? WHERE id = ?").run(timestamp, params.id);
+            }
+
+            // 记录负反馈到 compile_queue（让系统学习什么不是好灵感）
+            db.prepare(`
+              INSERT INTO compile_queue (id, source_type, content, target_page, priority, status, created_at)
+              VALUES (?, 'feedback', ?, NULL, 3, 'pending', ?)
+            `).run(generateId(), JSON.stringify({ inspiration_id: params.id, title: insp.title, action: 'dismissed', reason, mode }), timestamp);
+
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ dismissed: 1, ids: [params.id], mode, reason }) }] };
+          }
+
+          // 批量模式
+          if (params.batch_status) {
+            let sql: string;
+            const values: unknown[] = [];
+
+            if (mode === 'delete') {
+              sql = "DELETE FROM inspirations WHERE status = ? AND branch = 'main'";
+            } else {
+              sql = "UPDATE inspirations SET status = 'archived', updated_at = ? WHERE status = ? AND branch = 'main'";
+              values.push(timestamp);
+            }
+            values.push(params.batch_status);
+
+            if (params.domain) {
+              sql += ' AND domain = ?';
+              values.push(params.domain);
+            }
+
+            const result = db.prepare(sql).run(...values);
+            const dismissed = result.changes;
+
+            // 批量负反馈
+            if (dismissed > 0) {
+              db.prepare(`
+                INSERT INTO compile_queue (id, source_type, content, target_page, priority, status, created_at)
+                VALUES (?, 'feedback', ?, NULL, 3, 'pending', ?)
+              `).run(generateId(), JSON.stringify({ action: 'batch_dismissed', status: params.batch_status, count: dismissed, reason, mode, domain: params.domain }), timestamp);
+            }
+
+            return { content: [{ type: 'text' as const, text: JSON.stringify({ dismissed, batch_status: params.batch_status, mode, reason, domain: params.domain ?? null }) }] };
+          }
+
+          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Either id or batch_status is required' }) }], isError: true };
+        }
+
+        default:
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({ error: `Unknown tool: ${name}` }) }],
+            isError: true,
+          };
+      }
+    } catch (err) {
+      log.error({ err, tool: name }, 'Tool execution failed');
+      const safeMessage = err instanceof MiniMemError
+        ? (err as MiniMemError).message
+        : 'Internal server error';
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify({ error: safeMessage, code: err instanceof MiniMemError ? (err as MiniMemError).code : 'INTERNAL_ERROR' }) }],
+        isError: true,
+      };
+    }
+}
+
+/**
+ * 启动 stdio 模式 MCP Server
+ */
+export async function startMCPStdio(): Promise<void> {
+  const server = createMCPServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  log.info('MCP Server started (stdio)');
+}
+
+/**
+ * 启动 Streamable HTTP 模式 MCP Server（支持远程访问）
+ *
+ * 使用 MCP 协议的 Streamable HTTP 传输，客户端通过 HTTP POST 发送 JSON-RPC 请求，
+ * 服务端可通过 SSE 流式返回结果。这是 MCP 远程部署的推荐方式。
+ *
+ * 安全机制：
+ * - 首次请求时校验 Bearer Token（JWT），认证后缓存到会话
+ * - 每次 Tool 调用前按风险等级检查权限
+ * - 所有操作写审计日志（dangerous 级别强制记录）
+ *
+ * @param port - 监听端口
+ * @param host - 监听地址，默认 0.0.0.0
+ */
+export async function startMCPHttp(port: number, host: string = '0.0.0.0'): Promise<void> {
+  // 当前请求对应的 client（在 HTTP handler 中设置，在 Tool handler 中读取）
+  let currentRequestClient: Partial<Client> = DEFAULT_TRUSTED_CLIENT;
+
+  // 不再预先创建全局 Server + Transport，改为每个 session 动态创建
+
+  const httpServer = createHttpServer(async (req, res) => {
+    // CORS 允许来源列表（通过 MINIMEM_CORS_ORIGINS 环境变量配置）
+    const allowedOrigins = (process.env.MINIMEM_CORS_ORIGINS || '').split(',').filter(Boolean);
+    const requestOrigin = req.headers['origin'] ?? '';
+    // 如果配置了白名单则校验，否则默认允许 localhost
+    const defaultOrigins = ['http://127.0.0.1', 'http://localhost'];
+    const origins = allowedOrigins.length > 0 ? allowedOrigins : defaultOrigins;
+    const corsOrigin = origins.includes(requestOrigin) ? requestOrigin : origins[0];
+
+    // 处理 CORS 预检
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': corsOrigin,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
+        'Access-Control-Expose-Headers': 'Mcp-Session-Id',
+        'Access-Control-Allow-Credentials': 'true',
+      });
+      res.end();
+      return;
+    }
+
+    // 设置 CORS 响应头
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+    res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // ── 认证层 ──
+    // 尝试从 session 缓存获取已认证的 client
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    if (sessionId && sessionClients.has(sessionId)) {
+      currentRequestClient = sessionClients.get(sessionId)!;
+    } else {
+      // 首次请求或无 session：执行 Token 认证
+      try {
+        currentRequestClient = await authenticateRequest(req);
+        // 认证成功，等后续 transport 分配 sessionId 后缓存
+        // 由于 sessionId 在 transport 内部生成，我们用 response header 回传后在后续请求中获取
+      } catch (err) {
+        if (err instanceof AuthenticationError) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: (err as Error).message, code: 'AUTH_ERROR' }));
+          return;
+        }
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Internal authentication error' }));
+        return;
+      }
+    }
+
+    // 拦截 response 的 Mcp-Session-Id header，缓存 client 到 session
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = function(headerName: string, value: string | number | readonly string[]) {
+      if (headerName.toLowerCase() === 'mcp-session-id' && typeof value === 'string') {
+        sessionClients.set(value, currentRequestClient);
+      }
+      return originalSetHeader(headerName, value);
+    };
+
+    // ── 解析请求体，检测是否是 initialize ──
+    let body: any = null;
+    if (req.method === 'POST') {
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk);
+        body = JSON.parse(Buffer.concat(chunks).toString());
+      } catch (e) {
+        // 忽略解析错误
+      }
+    }
+    
+    const isInitialize = body?.method === 'initialize';
+    const existingSessionId = req.headers['mcp-session-id'] as string | undefined;
+    
+    // ── 会话管理：每个连接独立的 Server + Transport ──
+    let sessionEntry = existingSessionId ? sessionTransports.get(existingSessionId) : null;
+    
+    if (isInitialize && !sessionEntry) {
+      // 新连接：创建新的 Server + Transport
+      const newSessionId = randomUUID();
+      const newServer = createMCPServer(() => currentRequestClient);
+      const newTransport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => newSessionId,
+      });
+      await newServer.connect(newTransport);
+      sessionEntry = { transport: newTransport, server: newServer, client: currentRequestClient };
+      sessionTransports.set(newSessionId, sessionEntry);
+      sessionClients.set(newSessionId, currentRequestClient);
+      log.info({ sessionId: newSessionId }, 'New MCP session created');
+    }
+    
+    if (!sessionEntry) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Session not found. Please reconnect.' }));
+      return;
+    }
+    
+    // 更新当前请求的 client
+    currentRequestClient = sessionEntry.client;
+
+    // 委托给 StreamableHTTPServerTransport 处理
+    await sessionEntry.transport.handleRequest(req, res, body);
+  });
+
+  httpServer.listen(port, host, () => {
+    log.info({ port, host, authEnabled: getConfig().auth.enabled }, 'MCP Server started (Streamable HTTP)');
+    log.info(`  Remote MCP clients can connect via: http://${host}:${port}/mcp`);
+    if (!getConfig().auth.enabled) {
+      log.warn('  ⚠️  Auth is DISABLED — all clients have trusted access. Set auth.enabled=true for production!');
+    }
+  });
+
+  // 优雅关闭
+  const shutdown = async () => {
+    log.info('MCP HTTP Server shutting down...');
+    sessionClients.clear();
+    await transport.close();
+    httpServer.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+// ── 辅助函数 ──
+
+function loadSurfacesForAgent(agentType: string): Record<string, string> {
+  const db = getDb();
+  const fileMap: Record<string, SurfaceFileName[]> = {
+    codebuddy: ['me.md', 'work.md', 'agent.md', 'context.md'],
+    openclaw: ['me.md', 'soul.md', 'social.md', 'context.md'],
+    general: ['me.md', 'soul.md', 'work.md', 'social.md', 'life.md', 'agent.md', 'context.md', 'index.md', 'insight.md'],
+  };
+
+  const files = fileMap[agentType] ?? fileMap.general;
+  const result: Record<string, string> = {};
+
+  for (const fileName of files) {
+    const row = db.prepare('SELECT content FROM surface_files WHERE file_name = ?').get(fileName) as { content: string } | undefined;
+    if (row) {
+      result[fileName] = row.content;
+    }
+  }
+
+  return result;
+}

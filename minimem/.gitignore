@@ -1,0 +1,35 @@
+node_modules/
+dist/
+*.js.map
+
+# Data
+data/db/*.db
+data/db/*.db-wal
+data/db/*.db-shm
+data/vectors/
+data/snapshots/
+data/exports/
+data/backups/
+data/dreams/
+data/logs/
+
+# Keep surface templates
+!data/surfaces/
+
+# Config with secrets
+config.local.toml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage/
+
+# Env
+.env
+.env.local

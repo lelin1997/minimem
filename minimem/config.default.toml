@@ -1,0 +1,267 @@
+# ============================================================
+# MiniMem — 默认配置文件
+# 路径: ~/.minimem/config.toml
+# ============================================================
+
+[server]
+host = "127.0.0.1"
+port = 6677
+mode = "local"              # "local" | "self-hosted" | "cloud"
+
+[auth]
+enabled = true
+jwt_secret_env = "MINIMEM_JWT_SECRET"
+token_expiry = "7d"
+
+[encryption]
+enabled = true
+provider = "sqlcipher"           # "none" | "sqlcipher"
+key_storage = "keychain"         # "env" | "keychain"
+
+[llm]
+provider = "openai-compatible"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+api_key_env = "MINIMEM_LLM_API_KEY"
+
+[llm.models]
+# 三级模型分层：heavy=深度推理（做梦/灵感）、medium=结构化提取（事实/归纳）、light=快速分类（门控/评分/排序）
+# 腾讯云 Coding Plan 建议: heavy=glm-5（85% 成功率）, medium=minimax-m2.5（SWE-Bench 80.2%、原生 tool calling）, light=hunyuan-2.0-instruct（最快 11s）
+# ⚠️ hunyuan-turbos 和 hunyuan-t1 已标记"即将下线"，不要使用
+# 阿里云百炼建议: heavy=qwen-max, medium=qwen-plus, light=qwen-turbo
+heavy = "qwen-max"          # 做梦 Phase 2-3、L4 更新、周灵感假设
+medium = "qwen-plus"        # 事实提取、查询规划、做梦编译、日报周报、人物画像
+light = "qwen-turbo"        # 质量门控、分类、重排序、NER、压缩、Surface 文件
+# vision = "qwen-vl-max"   # Vision LLM（图片描述），不配置则回退到 heavy 模型
+
+[llm.embedding]
+enabled = true
+model = "text-embedding-v3"
+dimensions = 1024            # 向量维度，需与已有向量一致
+base_url = ""                # 空字符串 = 复用 llm.base_url
+api_key_env = ""             # 空字符串 = 复用 llm.api_key_env
+
+[llm.vision]
+model = ""                   # Vision LLM 模型名，空字符串 = 回退到 heavy 模型
+base_url = ""                # 空字符串 = 复用 llm.base_url
+api_key_env = ""             # 空字符串 = 复用 llm.api_key_env
+
+timeout_ms = 30000              # 单次 LLM 请求超时（毫秒）
+max_input_tokens = 6000         # 单条消息最大 token 数（超过自动截断）
+
+[llm.retry]
+max_attempts = 3                # 最大重试次数（含首次请求）
+base_delay_ms = 1000            # 指数退避基准延迟
+max_delay_ms = 10000            # 退避最大延迟
+
+# P0+P1: LLM 限流保护（防止触发 Coding Plan / API 服务端限频）
+[llm.rate_limit]
+max_concurrency = 3             # 最大并发 LLM 请求数（避免瞬时并发打爆限频）
+min_interval_ms = 200           # 两次请求之间的最小间隔（毫秒）
+jitter_max_ms = 500             # 退避 Jitter 随机上限（毫秒，避免惊群效应）
+# Coding Plan Pro 套餐配额（按实际套餐调整）
+quota_5h = 6000                 # 5 小时窗口配额（Pro=6000, Lite=1200）
+quota_weekly = 45000            # 每周配额（Pro=45000, Lite=9000）
+quota_monthly = 90000           # 每月配额（Pro=90000, Lite=18000）
+quota_warn_threshold = 0.15     # 配额预警阈值（剩余 15% 时 warn 日志）
+degrade_on_exhaustion = true    # 配额耗尽时降级（跳过非关键 LLM 调用如 embedding、NER）
+
+[llm.cost_limit]
+daily = 10                  # 元/天
+monthly = 200               # 元/月
+
+[llm.batch]
+batch_size = 10
+max_wait_ms = 300000        # 5 分钟
+
+[llm.cache]
+enabled = true
+semantic_threshold = 0.95
+ttl_hours = 24
+
+[ingest]
+rate_limit_per_minute = 60
+quality_gate_enabled = true
+pii_detection = "mask"      # "mask" | "reject" | "keep"
+
+[dreaming]
+schedule = "0 3 * * *"      # 每天凌晨 3:00
+auto_trigger_threshold = 50
+cold_start_threshold = 20
+# MINIMEM-003 E08: 种子选择策略
+seed_selection = "random"    # "random" | "mmr"（最大边际相关性）
+mmr_lambda = 0.7             # MMR 平衡系数（1=纯重要性, 0=纯多样性）
+# MINIMEM-003 E09: Dream 多轮迭代
+max_dream_iterations_daily = 2   # 日做梦迭代轮数
+max_dream_iterations_weekly = 3  # 周做梦迭代轮数
+# MINIMEM-003 E12-E14: 自顶向下编译（L4 指导 L2→L3 编译 + L4→L3 一致性校验 + L4 辅助 L1 重要性评估）
+top_down_compile = true          # 启用自顶向下编译链路
+
+# MINIMEM-002: 灵感引擎配置
+[dreaming.inspiration]
+enabled = true
+max_sparks_per_dream = 5           # 每次做梦最多产生的新灵感数
+cross_pollinate_pairs = 5          # 跨域碰撞尝试对数
+similarity_window = [0.15, 0.45]   # 碰撞相似度窗口
+max_incubations = 3                # 单条灵感最大孵化轮次
+incubation_temperature = 0.9       # 孵化 LLM 温度
+habit_detect_days = 30             # 习惯检测回溯天数
+habit_min_occurrences = 2          # 判定为"习惯"的最少出现次数
+score_threshold = 0.5              # 灵感入库最低分
+mature_confidence = 0.7            # 成熟灵感的最低信心度
+spark_ttl_days = 7                 # 火花保鲜期
+incubating_ttl_days = 14           # 孵化中保鲜期
+mature_ttl_days = 30               # 成熟灵感保鲜期
+
+[gc]
+light_schedule = "0 */6 * * *"
+standard_schedule = "0 4 * * *"
+deep_schedule = "0 5 * * 0"
+temperature_decay_interval_hours = 6
+# MINIMEM-003 T-E06: 衰减模型
+decay_model = "linear"          # "linear" | "logarithmic" | "ebbinghaus"
+decay_base_rate = 2             # 衰减基准速率
+ebbinghaus_alpha = 0.3          # MINIMEM-003 E11: Ebbinghaus 稳定性增长系数（每次复习后 S_new = S * (1 + α * ln(1 + interval/S))）
+
+[gc.storage_quotas]
+hot = 500
+warm = 2000
+cool = 10000
+cold = 50000
+frozen = 200000
+
+[surface]
+budget_tokens = 10000
+files = ["me.md", "soul.md", "work.md", "social.md", "life.md", "agent.md", "context.md", "index.md"]
+
+[storage]
+data_dir = "~/.minimem"
+
+[storage.sqlite]
+wal_mode = true
+
+[storage.vector]
+provider = "memory"         # "memory" | "qdrant" | "chroma"
+# MINIMEM-003: HNSW 参数（内存后端使用）
+hnsw_m = 16                 # 每层最大连接数
+hnsw_ef_construction = 200  # 构建时搜索宽度
+hnsw_ef_search = 50         # 查询时搜索宽度
+hnsw_auto_threshold = 5000  # 向量数超过此值自动启用 HNSW
+
+# MINIMEM-003: Qdrant 配置（provider = "qdrant" 时生效）
+# [storage.vector.qdrant]
+# url = "http://localhost:6333"
+# collection = "minimem"
+# api_key_env = "QDRANT_API_KEY"     # API Key 环境变量名
+# health_check_interval_ms = 30000   # 健康检查间隔（毫秒）
+# retry_max_attempts = 3             # 最大重试次数
+# retry_base_delay_ms = 1000         # 重试基准延迟（毫秒）
+# retry_max_delay_ms = 10000         # 重试最大延迟（毫秒）
+# request_timeout_ms = 10000         # 单次请求超时（毫秒）
+
+[storage.log]
+level = "info"
+max_size_mb = 10
+max_files = 10
+
+[tracing]
+enabled = true
+retention_days = 30
+
+[backup]
+enabled = true
+schedule = "0 2 * * *"
+retention_count = 7
+
+[scheduler]
+startup_compensation = true     # 启动时是否补偿执行过期的定时任务
+compensation_delay_ms = 5000    # 启动后延迟多少毫秒执行补偿
+
+# ── MINIMEM-001: 领域隔离 ──
+
+[domain]
+default_domain = "default"
+
+[domain.rules]
+ai_classify = { enabled = false, confidence_threshold = 0.8 }
+
+[domain.rules.source_map]
+# 来源 → 领域的自动映射规则
+# 示例: project-memory = "work"
+# 示例: diary = "personal"
+
+# ── REQ-021 / TODO-022: 外部数据源连接器 ──
+
+[connectors]
+# 启用连接器框架（默认关闭）
+enabled = false
+
+[connectors.webhook]
+enabled = false
+port = 6679
+path = "/webhook"
+secret = ""                     # 空字符串 = 不校验 token
+source_tag = "webhook"
+
+[connectors.file_watcher]
+enabled = false
+watch_dirs = []                 # 监听的目录列表，如 ["/path/to/notes", "/path/to/journal"]
+extensions = [".md", ".txt"]    # 允许的文件扩展名
+max_file_size_bytes = 100000    # 100KB
+debounce_ms = 2000
+recursive = true
+source_tag = "file-watcher"
+
+# ── MINIMEM-005: 多模态感知 ──
+
+[perception]
+# 多模态感知总开关
+enabled = true
+
+[perception.multimodal.url]
+timeout_ms = 30000              # URL 抓取超时（毫秒）
+max_output_length = 50000       # 正文最大输出长度（字符）
+user_agent = "MiniMem/0.2.0 (Knowledge Import Bot)"
+max_redirects = 5               # 最大重定向次数
+dns_resolve_check = true        # DNS 解析后二次检查（防 DNS rebinding）
+blocked_domains = []            # 域名黑名单（追加到内置黑名单之上）
+
+[perception.multimodal.file]
+max_file_size_mb = 10           # 单文件最大大小（MB）
+max_chunk_size = 50000          # 单块最大字符数
+chunk_overlap = 200             # 块间重叠字符数
+max_chunks = 20                 # 单文件最大分块数（防止 L1 爆炸）
+allowed_extensions = [".md", ".markdown", ".txt", ".text", ".pdf", ".docx", ".html", ".htm"]
+
+[perception.multimodal.image]
+max_size_mb = 10                # 单张图片最大大小（MB）
+allowed_formats = ["jpg", "jpeg", "png", "gif", "webp"]
+max_description_tokens = 2000   # Vision LLM 描述最大 token 数
+rate_limit_per_minute = 10      # Vision LLM 调用频率限制（次/分钟）
+
+# ── MINIMEM-006: Hint-Driven Recall ──
+
+[recall]
+enabled = true
+
+[recall.hints]
+max_hints = 3                   # 单次最大 hint 条数
+min_relevance = 0.3             # 最低相关性阈值（低于此分的候选被丢弃）
+token_budget = 200              # hint 总 token 预算
+summary_max_chars = 80          # 单条摘要最大字符数
+skip_min_length = 10            # 消息短于此长度直接跳过
+
+[recall.hints.signals]
+semantic_weight = 0.50          # 语义信号权重（embedding 相似度）
+entity_weight = 0.25            # 实体信号权重（关键词/NER 匹配）
+time_weight = 0.15              # 时间信号权重（时间表达式 + 近期加权）
+graph_weight = 0.10             # 图关联信号权重（1-hop 知识图谱）
+
+[recall.hints.cache]
+embedding_ttl = 300             # embedding 缓存 TTL（秒），0 = 禁用
+summary_ttl = 600               # 摘要缓存 TTL（秒），0 = 禁用
+session_reuse_threshold = 0.9   # 同 session 相似消息复用阈值
+
+[recall.auto]
+default_mode = "hint"           # "hint" | "full" | "smart"
+intent_model = "light"          # 意图判断使用的模型层级
+intent_timeout_ms = 3000        # 意图判断超时（毫秒）
