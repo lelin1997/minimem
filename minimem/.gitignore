@@ -33,3 +33,5 @@ coverage/
 # Env
 .env
 .env.local
+minimem/references/
+references/
