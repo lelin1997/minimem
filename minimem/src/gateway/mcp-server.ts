@@ -1805,8 +1805,12 @@ export async function startMCPHttp(port: number, host: string = '0.0.0.0'): Prom
   // 优雅关闭
   const shutdown = async () => {
     log.info('MCP HTTP Server shutting down...');
+    
+    for (const [, entry] of sessionTransports) {
+      try { await entry.transport.close(); } catch { /* ignore */ }
+    }
+    sessionTransports.clear();
     sessionClients.clear();
-    await transport.close();
     httpServer.close();
     process.exit(0);
   };

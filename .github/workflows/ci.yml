@@ -28,10 +28,7 @@ jobs:
         run: cd minimem && pnpm install --frozen-lockfile
 
       - name: Type check
-        run: cd minimem && pnpm typecheck || echo "⚠️ typecheck有warning，不阻塞CI"
-
-      - name: Lint
-        run: cd minimem && pnpm lint || echo "⚠️ lint有warning，不阻塞CI"
+        run: cd minimem && pnpm typecheck
 
       - name: Test (requires API key)
         if: env.MINIMEM_LLM_API_KEY != ''
@@ -56,4 +53,4 @@ jobs:
         run: cd minimem-console && pnpm install --frozen-lockfile
 
       - name: Build
-        run: cd minimem-console && pnpm build || echo "⚠️ Console build有warning，不阻塞CI"
+        run: cd minimem-console && pnpm build || echo "⚠️ Build has warnings"
