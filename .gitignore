@@ -13,3 +13,6 @@ __MACOSX/
 .idea/
 
 # (minimem & minimem-console have their own .gitignore for node_modules etc.)
+
+# Data directory (full)
+minimem/data/
