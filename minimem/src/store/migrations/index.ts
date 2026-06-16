@@ -139,4 +139,22 @@ export const migrations: Migration[] = [
       }
     },
   },
+
+  // Version 7: Async Ingest — 为 experiences 添加 processed 字段（异步摄入支持）
+  {
+    version: 7,
+    name: 'add_processed_to_experiences',
+    up(db) {
+      db.exec('ALTER TABLE experiences ADD COLUMN processed INTEGER NOT NULL DEFAULT 1');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_experiences_processed ON experiences(processed)');
+    },
+    down(db) {
+      try {
+        db.exec('DROP INDEX IF EXISTS idx_experiences_processed');
+        db.exec('ALTER TABLE experiences DROP COLUMN processed');
+      } catch {
+        // SQLite < 3.35.0 不支持 DROP COLUMN，忽略
+      }
+    },
+  },
 ];

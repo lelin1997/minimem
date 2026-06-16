@@ -24,6 +24,7 @@ export interface CreateExperienceInput {
   content_hash?: string | null;
   embedding_id?: string | null;
   domain?: string; // MINIMEM-001: 领域隔离
+  processed?: boolean; // 异步摄入：默认 true（同步），false=待后台处理
 }
 
 /**
@@ -35,8 +36,8 @@ export function createExperience(input: CreateExperienceInput): Experience {
   const timestamp = now();
 
   const stmt = db.prepare(`
-    INSERT INTO experiences (id, raw_content, content_type, source, importance, tags, participants, context, content_hash, embedding_id, branch, domain, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'main', ?, ?, ?)
+    INSERT INTO experiences (id, raw_content, content_type, source, importance, tags, participants, context, content_hash, embedding_id, branch, domain, processed, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'main', ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -51,6 +52,7 @@ export function createExperience(input: CreateExperienceInput): Experience {
     input.content_hash ?? null,
     input.embedding_id ?? null,
     input.domain ?? 'default',
+    input.processed !== false ? 1 : 0,
     timestamp,
     timestamp,
   );
@@ -65,8 +67,8 @@ export function createExperience(input: CreateExperienceInput): Experience {
 export function createExperiencesBatch(inputs: CreateExperienceInput[]): Experience[] {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO experiences (id, raw_content, content_type, source, importance, tags, participants, context, content_hash, embedding_id, branch, domain, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'main', ?, ?, ?)
+    INSERT INTO experiences (id, raw_content, content_type, source, importance, tags, participants, context, content_hash, embedding_id, branch, domain, processed, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'main', ?, ?, ?, ?)
   `);
 
   const ids: string[] = [];
@@ -88,6 +90,7 @@ export function createExperiencesBatch(inputs: CreateExperienceInput[]): Experie
         input.content_hash ?? null,
         input.embedding_id ?? null,
         input.domain ?? 'default',
+        input.processed !== false ? 1 : 0,
         timestamp,
         timestamp,
       );
@@ -179,6 +182,30 @@ export function getUnprocessedExperiences(limit: number = 10): Experience[] {
 }
 
 /**
+ * 获取待异步处理的经历（processed = 0）
+ * 用于后台 worker 扫描未完成 LLM 处理的记忆
+ */
+export function getPendingExperiences(limit: number = 10): Experience[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT * FROM experiences
+    WHERE processed = 0 AND branch = 'main'
+    ORDER BY created_at ASC
+    LIMIT ?
+  `).all(limit) as Record<string, unknown>[];
+  return rows.map(rowToExperience);
+}
+
+/**
+ * 将经历标记为已处理
+ */
+export function markExperienceProcessed(id: string): void {
+  const db = getDb();
+  db.prepare('UPDATE experiences SET processed = 1, updated_at = ? WHERE id = ?')
+    .run(new Date().toISOString(), id);
+}
+
+/**
  * 统计数量
  */
 export function countExperiences(): number {
@@ -202,6 +229,7 @@ function rowToExperience(row: Record<string, unknown>): Experience {
     snapshot_id: (row.snapshot_id as string) || null,
     branch: row.branch as string,
     domain: (row.domain as string) || 'default',
+    processed: (row.processed as number) === 1,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };

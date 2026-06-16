@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS experiences (
   context TEXT,
   content_hash TEXT,                         -- SHA-256 去重
   embedding_id TEXT,
+  processed INTEGER NOT NULL DEFAULT 1,
   snapshot_id TEXT,
   branch TEXT NOT NULL DEFAULT 'main',
   domain TEXT NOT NULL DEFAULT 'default',    -- MINIMEM-001: 领域隔离

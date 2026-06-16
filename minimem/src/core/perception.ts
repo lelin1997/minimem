@@ -14,6 +14,7 @@ import { importanceScoringPrompt, qualityGatePrompt, nerPrompt, l1ImportanceBoos
 import { initTemperature } from '../lifecycle/index.js';
 import { incrementMemoryCount } from '../scheduler/index.js';
 import { enqueueEmbeddingBackfill } from './embedding-backfill.js';
+import { detectInjection } from './injection-guard.js';
 import { getConfig } from '../config/index.js';
 import type { Experience, ContentType, MemorySource } from '../common/types.js';
 
@@ -47,6 +48,7 @@ export interface IngestInput {
   participants?: string[];
   context?: string;
   domain?: string; // MINIMEM-001: 领域隔离
+  asyncMode?: boolean; // false=强制同步处理，默认异步（跳过LLM，后台worker补跑）
   // MINIMEM-005: 多模态感知扩展
   url?: string;
   image_url?: string;
@@ -93,6 +95,45 @@ export async function ingestMemory(input: IngestInput): Promise<IngestResult> {
   if (piiResult.detected.length > 0) {
     content = piiResult.masked;
     log.info({ pii: piiResult.detected }, 'PII detected and masked');
+  }
+
+  // 4.5 注入检测守卫（规则 + LLM 两层）
+  const injectionResult = await detectInjection(content);
+  if (!injectionResult.safe) {
+    log.warn({ reason: injectionResult.reason, source: input.source }, 'Injection guard blocked content');
+    throw new ValidationError(`Content rejected by injection guard: ${injectionResult.reason}`);
+  }
+
+  // 5. 异步快路径（默认）：跳过所有 LLM 调用，快速写入后由后台 worker 处理
+  // 除非显式传 asyncMode=false，否则默认异步
+  const syncMode = input.asyncMode === false;
+  if (!syncMode) {
+    const experience = createExperience({
+      raw_content: content,
+      content_type: input.content_type,
+      source: input.source,
+      importance: input.importance ?? 0.5,
+      tags: input.tags,
+      participants: input.participants,
+      context: input.context,
+      content_hash: contentHash,
+      embedding_id: null,
+      domain,
+      processed: false,  // 标记为待处理
+    });
+
+    // FTS 索引（无需 LLM）
+    addToFts(experience.id, 'L1', content, input.tags ?? [], []);
+    initTemperature(experience.id, 'L1', input.importance ?? 0.5);
+    incrementMemoryCount();
+
+    log.info({ id: experience.id, asyncMode: true, autoAsync: !input.asyncMode && content.length > 2000 }, 'Memory ingested (async fast path)');
+    return {
+      experience,
+      entities: [],
+      pii_detected: piiResult.detected,
+      importance: input.importance ?? 0.5,
+    };
   }
 
   // 5. 质量门控（LLM 或规则）

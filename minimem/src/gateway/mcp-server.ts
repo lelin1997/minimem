@@ -101,6 +101,7 @@ export function createMCPServer(getClient?: () => Partial<Client>): Server {
               participants: { type: 'array', items: { type: 'string' }, description: '相关人物' },
               context: { type: 'string', description: '当前上下文' },
               domain: { type: 'string', description: '所属领域（如 work/personal），不传默认 default' },
+              async_mode: { type: 'boolean', description: '设为 false 使用同步处理（阻塞等待 LLM 完成），默认 true 异步处理（快速返回，后台 Worker 补跑 LLM）' },
               extract_mode: { type: 'string', enum: ['readability', 'full', 'summary'], description: 'URL 内容提取模式（默认 readability）' },
             },
             required: ['source'],
@@ -673,7 +674,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
     try {
       switch (name) {
         case 'add_memory': {
-          const params = args as { content?: string; url?: string; file_path?: string; image_url?: string; source: string; content_type?: string; importance?: number; tags?: string[]; participants?: string[]; context?: string; domain?: string; extract_mode?: string };
+          const params = args as { content?: string; url?: string; file_path?: string; image_url?: string; source: string; content_type?: string; importance?: number; tags?: string[]; participants?: string[]; context?: string; domain?: string; async_mode?: boolean; extract_mode?: string };
 
           // MINIMEM-005: URL 输入走多模态路径
           if (params.url) {
@@ -753,6 +754,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
             };
           }
 
+          const asyncMode = params.async_mode !== false; // 默认异步
           const result = await ingestMemory({
             content: params.content,
             source: params.source,
@@ -762,6 +764,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
             participants: params.participants,
             context: params.context,
             domain: params.domain,
+            asyncMode,
           });
           return {
             content: [{ type: 'text' as const, text: JSON.stringify({ memory_id: result.experience.id, layer: 'L1', importance: result.importance, entities: result.entities.length, domain: result.experience.domain }) }],

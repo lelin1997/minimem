@@ -11,6 +11,7 @@ import { runLightGC, runStandardGC, runDeepGC, runEmergencyGC, getTemperatureDis
 import { runCompression } from '../lifecycle/compressor.js';
 import { createSnapshot } from '../version/snapshot.js';
 import { createBackup, verifyBackup } from '../store/backup.js';
+import { runAsyncIngestWorker } from '../core/async-ingest-worker.js';
 
 const log = getLogger('scheduler');
 
@@ -292,6 +293,15 @@ export function startScheduler(config?: Partial<SchedulerConfig>): void {
       log.info('Embedding backfill completed');
     } catch (err) {
       log.error({ err }, 'Embedding backfill task failed');
+    }
+  });
+
+  // ── 异步摄入 Worker：每 30 秒扫描未处理记忆 ──
+  registerTask('ingest:async', '*/30 * * * * *', async () => {
+    try {
+      await runAsyncIngestWorker();
+    } catch (err) {
+      log.error({ err }, 'Async ingest worker failed');
     }
   });
 

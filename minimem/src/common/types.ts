@@ -36,6 +36,7 @@ export interface Experience {
   snapshot_id: string | null;
   branch: string;
   domain: string; // MINIMEM-001: 领域隔离
+  processed: boolean; // 异步摄入：true=已完成LLM处理, false=待后台worker处理
   created_at: string; // ISO 8601
   updated_at: string;
 }
