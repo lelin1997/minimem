@@ -221,7 +221,7 @@ Ch.17 问题清单 ──→ 跨层审计发现 → 已迁移至 REPAIR.md
 
 ═══════════════════════════════════════════════════════════════════════════
  阶段 4: 知识编译                     层级: L-8  |  FLOWS: Ch.10
-         (Karpathy Compile)           DESIGN: §十四
+         (Knowledge Compile)           DESIGN: §十四
 ═══════════════════════════════════════════════════════════════════════════
 
   compile(db, config) — Dream Phase 2 后半段
@@ -350,7 +350,7 @@ Ch.17 问题清单 ──→ 跨层审计发现 → 已迁移至 REPAIR.md
   Phase 2 — 编译                                跨 L-5 / L-8
     ├── 调用 Ch.3 Processing: L1→L2 事实提取
     ├── 调用 Ch.4 Consolidation: L2→L3→L4 巩固
-    ├── 调用 Ch.10 Karpathy Compile: 知识页面编译
+    ├── 调用 Ch.10 Knowledge Compile: 知识页面编译
     ├── 处理 compile_queue 积压
     ├── 触发 Ch.7 压缩管线（老记忆）
     └── [事务提交 checkpoint-2]

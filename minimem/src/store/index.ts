@@ -12,7 +12,7 @@ export * from './world-facts.js';
 export * from './observations.js';
 export * from './mental-models.js';
 
-// Knowledge Pages (Karpathy Compile)
+// Knowledge Pages (Knowledge Compile)
 export * from './knowledge-pages/index.js';
 
 // 图存储

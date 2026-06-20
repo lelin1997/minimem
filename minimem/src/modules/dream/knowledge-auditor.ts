@@ -1,7 +1,7 @@
 // ============================================================
 // MiniMem — Dream Engine: Phase 2.5 — Knowledge Audit
 // ============================================================
-// 在 Karpathy Compile 之后执行，对知识页面做质量审计
+// 在 Knowledge Compile 之后执行，对知识页面做质量审计
 
 import { getLogger } from '../../common/logger.js';
 import { getLLM } from '../../llm/client.js';

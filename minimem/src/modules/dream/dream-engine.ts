@@ -203,7 +203,7 @@ export async function triggerDream(options?: DreamOptions): Promise<DreamSession
         log.warn({ err }, 'Drift scan failed (non-critical)');
       }
 
-      // Phase 2.5: 知识审计 (MINIMEM-KA: Karpathy Compile 质量把关)
+      // Phase 2.5: 知识审计 (MINIMEM-KA: Knowledge Compile 质量把关)
       try {
         const { runKnowledgeAudit: runKA } = await import('./knowledge-auditor.js');
         knowledgeAuditResult = await runKA();
@@ -221,19 +221,25 @@ export async function triggerDream(options?: DreamOptions): Promise<DreamSession
       saveCheckpoint(db, sessionId, 3, preSnapshotId, dreamResult);
     }
 
-    // Phase 3.5: 灵感引擎 (MINIMEM-002)
+    // Phase 3.5: 灵感引擎 (MINIMEM-002) — 实验性，默认关闭
+    // TODO-009: 从默认 dream pipeline 拆出，需 dreaming.inspiration.enabled = true 才执行
     if (phasesToRun.includes(3)) {
-      try {
-        const { runInspirationEngine } = await import('./inspiration-engine.js');
-        inspirationResult = await runInspirationEngine({
-          dreamResult,
-          mode,
-          domain: options?.domain,
-        });
-        saveCheckpoint(db, sessionId, 3.5, preSnapshotId, inspirationResult);
-        log.info(inspirationResult, '💡 Inspiration engine complete');
-      } catch (err) {
-        log.warn({ err }, 'Inspiration engine failed (non-critical)');
+      const inspirationEnabled = getConfig().dreaming.inspiration?.enabled === true;
+      if (!inspirationEnabled) {
+        log.debug('Inspiration engine skipped (dreaming.inspiration.enabled = false)');
+      } else {
+        try {
+          const { runInspirationEngine } = await import('./inspiration-engine.js');
+          inspirationResult = await runInspirationEngine({
+            dreamResult,
+            mode,
+            domain: options?.domain,
+          });
+          saveCheckpoint(db, sessionId, 3.5, preSnapshotId, inspirationResult);
+          log.info(inspirationResult, '💡 Inspiration engine complete');
+        } catch (err) {
+          log.warn({ err }, 'Inspiration engine failed (non-critical)');
+        }
       }
     }
 

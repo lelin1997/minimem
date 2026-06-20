@@ -186,7 +186,7 @@ runCompile()
 │     → 高置信度观察升级为原则/规则/信念
 │     → 写入 mental_models 表
 │
-├─ 4. 处理 compile_queue (Karpathy Compile)
+├─ 4. 处理 compile_queue (Knowledge Compile)
 │     getPendingCompileItems(30)  → 取最多 30 个 pending 项
 │     │
 │     LLM 编译 → chatJson({ messages: knowledgePageCompilePrompt(...) })
@@ -922,7 +922,7 @@ Agent 调用 suggest_surface_update
 | `src/index.ts` | 进程入口，启动/关闭调度器 |
 | `src/modules/dream/dream-engine.ts` | 做梦主调度器，4 阶段流水线 |
 | `src/modules/dream/auditor.ts` | Phase 1: 审计 + Knowledge Page Lint |
-| `src/modules/dream/compiler.ts` | Phase 2: 编译 + Karpathy Compile + index.md |
+| `src/modules/dream/compiler.ts` | Phase 2: 编译 + Knowledge Compile + index.md |
 | `src/modules/dream/dreamer.ts` | Phase 3: REM 创造性联想 |
 | `src/modules/dream/cleaner.ts` | Phase 4: 清理 + Surface 更新 + 版本合并 |
 | `src/modules/dream/dream-report.ts` | 做梦报告生成 + Markdown 格式化 |

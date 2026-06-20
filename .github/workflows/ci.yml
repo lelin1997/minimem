@@ -30,9 +30,33 @@ jobs:
       - name: Type check
         run: cd minimem && pnpm typecheck
 
-      - name: Test (requires API key)
-        if: env.MINIMEM_LLM_API_KEY != ''
-        run: cd minimem && pnpm test
+      - name: Unit tests (no LLM required)
+        run: cd minimem && pnpm test:unit
+
+      - name: Integration tests (in-memory DB, mock LLM)
+        run: cd minimem && pnpm test:integration
+
+  e2e:
+    runs-on: ubuntu-latest
+    # E2E 需要真实 LLM API key；无 secret 时测试内部会自动 skip
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install minimem deps
+        run: cd minimem && pnpm install --frozen-lockfile
+
+      - name: E2E tests (real LLM)
+        run: cd minimem && pnpm test:e2e
         env:
           MINIMEM_LLM_API_KEY: ${{ secrets.MINIMEM_LLM_API_KEY }}
 
@@ -53,4 +77,4 @@ jobs:
         run: cd minimem-console && pnpm install --frozen-lockfile
 
       - name: Build
-        run: cd minimem-console && pnpm build || echo "⚠️ Build has warnings"
+        run: cd minimem-console && pnpm build

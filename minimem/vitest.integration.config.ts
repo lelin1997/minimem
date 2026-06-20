@@ -1,22 +1,12 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
+// Integration 测试配置：内存 sqlite + mock LLM，CI 强制跑
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    // 默认 include 覆盖 unit + integration（不含 e2e/manual）
-    include: [
-      'tests/**/*.test.ts',
-      '!tests/integration/**/*.test.ts',
-      '!tests/e2e/**/*.test.ts',
-      '!tests/manual/**',
-    ],
-    coverage: {
-      provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/index.ts'],
-    },
+    include: ['tests/integration/**/*.test.ts'],
   },
   resolve: {
     alias: {

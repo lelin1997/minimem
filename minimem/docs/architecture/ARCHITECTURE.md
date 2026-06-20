@@ -92,7 +92,7 @@ MiniMem 是一个**独立运行的记忆服务进程**，对外暴露标准化�
 | 6 | **Retrieval** | `src/retrieval/` | 四路并行检索、查询规划、条件索引、重排序、压缩 |
 | 7 | **Lifecycle** | `src/lifecycle/` | 温度计算、GC（4 种策略）、压缩管线、流控、来源信誉、健康监控 |
 | 8 | **Version Control** | `src/version/` | 快照、分支、Diff、合并、回滚、审计日志 |
-| 9 | **Dream Engine** | `src/modules/dream/` | 4 阶段做梦流水线：审计(+Lint)→编译(Karpathy Compile)→联想→清理 |
+| 9 | **Dream Engine** | `src/modules/dream/` | 4 阶段做梦流水线：审计(+Lint)→编译(Knowledge Compile)→联想→清理 |
 | 10 | **Work Module** | `src/modules/work/` | 日志、日总结、周回顾、优先级排序 |
 | 11 | **Social Module** | `src/modules/social/` | 聊天摘要、人设画像、关系图谱、话题追踪 |
 | 12 | **LLM** | `src/llm/` | LLM 客户端（主模型 + 代理模型）、Prompt 模板、Embedding |
@@ -113,7 +113,7 @@ L2 事实 (world_facts)     ← 三元组 (主-谓-宾)，带置信度和时间�
     │ Dream Phase 2 编译
     ▼
 L3 观察 (observations)    ← 简单模式、趋势（散点记录）
-L3 知识页面 (knowledge_pages) ← 围绕实体/概念的结构化 Wiki 页面 (Karpathy Compile)
+L3 知识页面 (knowledge_pages) ← 围绕实体/概念的结构化 Wiki 页面 (Knowledge Compile)
     │                           含反向链接 [[related]]、证据追溯、INDEX 索引
     │ 做梦晋升/用户策划
     ▼
@@ -256,7 +256,7 @@ Gateway → 认证(JWT) → 权限检查 → 速率限制
          └─ → 温度初始化为 hot (memory_temperature 表)
 ```
 
-### 6.2 提炼流（层级晋升 + Karpathy 编译）
+### 6.2 提炼流（层级晋升 + Knowledge 编译）
 
 ```
 L1 experiences
@@ -348,7 +348,7 @@ Phase 1 — 审计 + Knowledge Page Lint:
       · 索引完整性(INDEX 与实际页面一致性)
     [事务提交 checkpoint-1]
     │
-Phase 2 — 编译 (Karpathy Compile 模式):
+Phase 2 — 编译 (Knowledge Compile 模式):
     L1→L2 事实提取
     读取 Knowledge Pages INDEX → LLM 编译决策:
       · 创建新 Knowledge Page
@@ -444,7 +444,7 @@ index.md 知识索引区:
 | `mental_models` | L4 模型 | `title`, `content`, `model_type`, `priority`(1-10), `scope`, `origin`, `is_active` |
 | `person_profiles` | 人设画像 | `name`, `aliases`, `personality`, `interests`, `opinions`, `speech_patterns`, `relationships` |
 
-#### Knowledge Pages（Karpathy 编译范式）
+#### Knowledge Pages（Knowledge 编译范式）
 
 | 表 | 说明 | 关键字段 |
 |----|------|---------|
@@ -739,7 +739,7 @@ minimem/
 │   │   ├── experiences.ts        # L1
 │   │   ├── world-facts.ts        # L2
 │   │   ├── observations.ts       # L3 散点观察
-│   │   ├── knowledge-pages/      # L3 知识页面 (Karpathy 编译)
+│   │   ├── knowledge-pages/      # L3 知识页面 (Knowledge 编译)
 │   │   │   ├── page-store.ts     # Knowledge Page CRUD
 │   │   │   ├── link-store.ts     # 反向链接管理
 │   │   │   ├── evidence-store.ts # 证据链管理
@@ -755,7 +755,7 @@ minimem/
 │   │   └── dream/                # 做梦引擎
 │   │       ├── dream-engine.ts   # 做梦主流程 (4 阶段)
 │   │       ├── auditor.ts        # Phase 1: 审计 + Knowledge Page Lint
-│   │       ├── compiler.ts       # Phase 2: 编译器 (Karpathy Compile)
+│   │       ├── compiler.ts       # Phase 2: 编译器 (Knowledge Compile)
 │   │       ├── dreamer.ts        # Phase 3: REM 联想
 │   │       ├── cleaner.ts        # Phase 4: 清理
 │   │       └── dream-report.ts   # 做梦报告 + 版本 diff

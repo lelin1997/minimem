@@ -15,7 +15,7 @@
 7. [生命周期管理 (Lifecycle)](#7-生命周期管理)
 8. [版本控制 (Version)](#8-版本控制)
 9. [Surface Files 管理](#9-surface-files-管理)
-10. [Knowledge Pages (Karpathy Compile)](#10-knowledge-pages)
+10. [Knowledge Pages (Knowledge Compile)](#10-knowledge-pages)
 11. [Owner / Person 档案管理](#11-owner--person-档案管理)
 12. [调度器 (Scheduler)](#12-调度器)
 13. [双网关 (Gateway)](#13-双网关)
@@ -371,7 +371,7 @@
 步骤 3: L3→L4 提升心智模型
   └─ 调用 consolidation.promoteToMentalModels(db, config)
 
-步骤 4: 处理 Compile Queue (Karpathy Compile)
+步骤 4: 处理 Compile Queue (Knowledge Compile)
   ├─ getPendingCompileItems(db)
   ├─ 对每条待处理项:
   │   ├─ type='new_fact' → LLM 决定创建/更新哪个 Knowledge Page
@@ -447,7 +447,7 @@
 
 **⚠️ Dream 引擎审查点**:
 - Dream 分支机制：所有 Phase 1-3 的写入是在 dream 分支还是 main 分支上？（代码中 branch 参数传递需确认）
-- Phase 2 中 Karpathy Compile 的 LLM 调用可能很多（每个 compile_queue 项一次），需要限流
+- Phase 2 中 Knowledge Compile 的 LLM 调用可能很多（每个 compile_queue 项一次），需要限流
 - Phase 3 的 randomWalk 只能在有向量的 L1 记忆上进行，L2/L3/L4 被排除
 - 如果 Phase 3 或 Phase 4 失败，已完成的 Phase 1-2 结果如何回滚？
 - Dream 恢复机制（dream/recovery.ts）：找到未完成 session，<24h 则从上次阶段恢复，否则放弃。但恢复时 dream 分支状态是否一致？

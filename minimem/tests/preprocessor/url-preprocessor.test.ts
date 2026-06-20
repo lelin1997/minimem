@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock url-security 模块（在 import 之前 mock）
 const mockValidateUrl = vi.fn();
-vi.mock('../../src/core/preprocessor/url-security.js', () => ({
+vi.mock('../../src/experimental/multimodal/url-security.js', () => ({
   validateUrl: (...args: unknown[]) => mockValidateUrl(...args),
 }));
 
@@ -15,7 +15,7 @@ vi.mock('../../src/config/index.js', () => ({
   getConfig: () => ({}),
 }));
 
-import { UrlPreprocessor } from '../../src/core/preprocessor/url-preprocessor.js';
+import { UrlPreprocessor } from '../../src/experimental/multimodal/url-preprocessor.js';
 
 describe('UrlPreprocessor', () => {
   let preprocessor: UrlPreprocessor;

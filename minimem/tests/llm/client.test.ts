@@ -438,6 +438,7 @@ describe('LLMClient', () => {
           return Promise.resolve({
             ok: false,
             status: 429,
+            headers: new Headers({ 'Retry-After': '0' }),
             text: () => Promise.resolve('rate limited'),
           });
         }

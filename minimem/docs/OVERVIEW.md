@@ -250,7 +250,7 @@ Dream Engine 是 MiniMem 最具特色的模块，模拟人类睡眠中的记忆�
     │    ├─ 检测 L2 事实冲突（同主谓不同宾）             │
     │    └─ Knowledge Page Lint（陈旧/断链/缺证据）      │
     │               │                                   │
-    │  Phase 2: Compile（Karpathy 编译）                 │
+    │  Phase 2: Compile（Knowledge 编译）                 │
     │    ├─ L1→L2 事实提取（三元组）                     │
     │    ├─ L2→L3 观察蒸馏                              │
     │    ├─ L3→L4 心智模型晋升                          │
@@ -390,7 +390,7 @@ spark → incubating → mature → acted → archived
 
 ## 9. Knowledge Pages（知识页面）
 
-Knowledge Pages 实现了 **Karpathy Compile**——将分散的事实编译为结构化的知识文档。
+Knowledge Pages 实现了 **Knowledge Compile**——将分散的事实编译为结构化的知识文档。
 
 ### 9.1 页面类型
 

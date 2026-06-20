@@ -7,13 +7,13 @@
 
 ## 目录
 
-1. [Knowledge Pages（Karpathy Compile）](#1-knowledge-pages)
+1. [Knowledge Pages（Knowledge Compile）](#1-knowledge-pages)
    - 1.1 [模块架构总览](#11-模块架构总览)
    - 1.2 [page-store.ts — 知识页面 CRUD](#12-page-storets)
    - 1.3 [link-store.ts — 反向链接管理](#13-link-storets)
    - 1.4 [evidence-store.ts — 证据链管理](#14-evidence-storets)
    - 1.5 [compile-queue.ts — 编译队列](#15-compile-queuets)
-   - 1.6 [compiler.ts — Karpathy Compile 执行引擎](#16-compilerts)
+   - 1.6 [compiler.ts — Knowledge Compile 执行引擎](#16-compilerts)
    - 1.7 [auditor.ts — Knowledge Page Lint](#17-auditorts)
    - 1.8 [完整数据流图](#18-完整数据流图)
 2. [Owner / Person Profile](#2-owner--person-profile)
@@ -340,7 +340,7 @@ db.transaction(() => {
 
 **文件**: `src/modules/dream/compiler.ts`（244 行）
 
-这是 **做梦 Phase 2** 的核心引擎，整合了四层提炼和 Karpathy Compile：
+这是 **做梦 Phase 2** 的核心引擎，整合了四层提炼和 Knowledge Compile：
 
 #### `runCompile(params?)` — L43-L105
 
@@ -359,7 +359,7 @@ Phase 2: 深度睡眠
   │   promoteToMentalModels(p.promoteToMentalModels) ← core/consolidation.ts
   │   默认批次: 10 (daily) / 30 (deep), daily 模式下 =0 跳过
   │
-  ├── Step 4: 处理 compile_queue (Karpathy Compile)
+  ├── Step 4: 处理 compile_queue (Knowledge Compile)
   │   processCompileQueue(p.compileQueue)
   │   默认批次: 30 (daily) / 50 (deep)
   │

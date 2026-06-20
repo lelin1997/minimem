@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS person_profiles (
 CREATE INDEX IF NOT EXISTS idx_person_profiles_name ON person_profiles(name);
 
 -- ═══════════════════════════════════════════════════════════
--- Knowledge Pages（Karpathy 编译范式）
+-- Knowledge Pages（Knowledge 编译范式）
 -- ═══════════════════════════════════════════════════════════
 
 -- L3 知识页面

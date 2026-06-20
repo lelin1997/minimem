@@ -1,5 +1,5 @@
 // ============================================================
-// MiniMem — Knowledge Pages 存储 (Karpathy Compile)
+// MiniMem — Knowledge Pages 存储 (Knowledge Compile)
 // ============================================================
 
 import { getDb } from '../database.js';

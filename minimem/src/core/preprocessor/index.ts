@@ -6,6 +6,7 @@
 // 然后交给 perception.ts 的 ingestMemory() 写入 L1
 
 import { getLogger } from '../../common/logger.js';
+import { getConfig } from '../../config/index.js';
 import type { ContentType } from '../../common/types.js';
 
 const log = getLogger('core:preprocessor');
@@ -140,9 +141,17 @@ export function getInputRouter(): InputRouter {
  * 注册所有已实现的 Preprocessors
  */
 function registerPreprocessors(router: InputRouter): void {
+  // TODO-011: 多模态预处理器已移至 experimental/multimodal/，perception 默认关闭
+  // 启用方式：config.toml 中设 [perception] enabled = true
+  const perceptionEnabled = getConfig()?.perception?.enabled === true;
+  if (!perceptionEnabled) {
+    log.debug('Multimodal preprocessors skipped (perception.enabled = false)');
+    return;
+  }
+
   // Phase 1: URL Preprocessor
   try {
-    const { UrlPreprocessor } = require('./url-preprocessor.js');
+    const { UrlPreprocessor } = require('../../experimental/multimodal/url-preprocessor.js');
     router.register('url', new UrlPreprocessor());
   } catch (err) {
     log.warn({ err }, 'Failed to register UrlPreprocessor');
@@ -150,7 +159,7 @@ function registerPreprocessors(router: InputRouter): void {
 
   // Phase 2: File Preprocessor
   try {
-    const { FilePreprocessor } = require('./file-preprocessor.js');
+    const { FilePreprocessor } = require('../../experimental/multimodal/file-preprocessor.js');
     router.register('file', new FilePreprocessor());
   } catch (err) {
     log.warn({ err }, 'Failed to register FilePreprocessor');
@@ -158,7 +167,7 @@ function registerPreprocessors(router: InputRouter): void {
 
   // Phase 3: Image Preprocessor
   try {
-    const { ImagePreprocessor } = require('./image-preprocessor.js');
+    const { ImagePreprocessor } = require('../../experimental/multimodal/image-preprocessor.js');
     router.register('image', new ImagePreprocessor());
   } catch (err) {
     log.warn({ err }, 'Failed to register ImagePreprocessor');

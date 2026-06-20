@@ -3,7 +3,7 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest';
-import { isPrivateIP, validateUrl } from '../../src/core/preprocessor/url-security.js';
+import { isPrivateIP, validateUrl } from '../../src/experimental/multimodal/url-security.js';
 
 describe('isPrivateIP', () => {
   // ── 内网 IP ──

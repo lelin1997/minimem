@@ -1,22 +1,14 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
+// E2E 测试配置：需要真实 LLM API，CI 可选跑
+// 运行：MINIMEM_LLM_API_KEY=xxx pnpm test:e2e
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    // 默认 include 覆盖 unit + integration（不含 e2e/manual）
-    include: [
-      'tests/**/*.test.ts',
-      '!tests/integration/**/*.test.ts',
-      '!tests/e2e/**/*.test.ts',
-      '!tests/manual/**',
-    ],
-    coverage: {
-      provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/index.ts'],
-    },
+    include: ['tests/e2e/**/*.test.ts'],
+    passWithNoTests: true,
   },
   resolve: {
     alias: {

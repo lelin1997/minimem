@@ -55,7 +55,7 @@ vi.mock('../../src/llm/client.js', () => ({
 // 保存原始 env
 const originalEnv = { ...process.env };
 
-import { ImagePreprocessor, type ImageInputType } from '../../src/core/preprocessor/image-preprocessor.js';
+import { ImagePreprocessor, type ImageInputType } from '../../src/experimental/multimodal/image-preprocessor.js';
 import type { MultimodalInput } from '../../src/core/preprocessor/index.js';
 
 function makeInput(overrides: Partial<MultimodalInput> = {}): MultimodalInput {

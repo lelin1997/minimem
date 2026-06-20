@@ -82,7 +82,7 @@ export interface Observation {
   updated_at: string;
 }
 
-// ── L3 知识页面 (Karpathy Compile) ──
+// ── L3 知识页面 (Knowledge Compile) ──
 
 export type PageType = 'person' | 'topic' | 'project' | 'concept' | 'skill' | 'place' | 'event_series';
 

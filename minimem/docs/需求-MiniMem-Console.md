@@ -95,7 +95,7 @@ Console 消费的 MiniMem REST API 端点（全部在 `/api/v1/` 下）：
 | L4 | MentalModel（心智模型） | `mental_models` | 原则/信念/价值观，从 L3 提炼 |
 
 另有：
-- **KnowledgePage**（知识页面）— L3 层的 Karpathy 编译产物
+- **KnowledgePage**（知识页面）— L3 层的 Knowledge 编译产物
 - **Inspiration**（灵感）— Dream Phase 3.5 产生的灵感洞察
 - **Surface Files**（9 个 .md）— 面向 Agent 的结构化上下文文件
 

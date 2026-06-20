@@ -59,12 +59,12 @@ export const DEFAULT_CONFIG: MiniMemConfig = {
   },
   llm: {
     provider: 'openai-compatible',
-    base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    base_url: 'https://api.deepseek.com/v1',
     api_key_env: 'MINIMEM_LLM_API_KEY',
     models: {
-      heavy: 'qwen-max',
-      medium: 'qwen-plus',
-      light: 'qwen-turbo',
+      heavy: 'deepseek-chat',
+      medium: 'deepseek-chat',
+      light: 'deepseek-chat',
     },
     embedding: {
       enabled: true,
@@ -114,6 +114,24 @@ export const DEFAULT_CONFIG: MiniMemConfig = {
       l3_to_l4_min_confidence: 0.6,  // 原硬编码 0.7，降低门槛
       l3_to_l4_min_observations: 2,  // 保持不变
     },
+    // MINIMEM-002: 灵感引擎 — 实验性功能，默认关闭
+    // P1 改造决策：从默认 dream pipeline 拆出，避免概念过载
+    // 启用方式：config.toml 中设 [dreaming.inspiration] enabled = true
+    inspiration: {
+      enabled: false,
+      max_sparks_per_dream: 5,
+      cross_pollinate_pairs: 5,
+      similarity_window: [0.15, 0.45],
+      max_incubations: 3,
+      incubation_temperature: 0.9,
+      habit_detect_days: 30,
+      habit_min_occurrences: 2,
+      score_threshold: 0.5,
+      mature_confidence: 0.7,
+      spark_ttl_days: 7,
+      incubating_ttl_days: 14,
+      mature_ttl_days: 30,
+    },
   },
   // REQ-017: 上下文检索配置
   context: {
@@ -125,6 +143,8 @@ export const DEFAULT_CONFIG: MiniMemConfig = {
     standard_schedule: '0 4 * * *',
     deep_schedule: '0 5 * * 0',
     temperature_decay_interval_hours: 6,
+    // TODO-013: 衰减模型默认 linear（简单模式），ebbinghaus 为高级选项见 config.default.toml 注释段
+    decay_model: 'linear',
     storage_quotas: {
       hot: 500,
       warm: 2000,
@@ -194,6 +214,11 @@ export const DEFAULT_CONFIG: MiniMemConfig = {
       recursive: true,
       source_tag: 'file-watcher',
     },
+  },
+  // TODO-011: 多模态感知 — 实验性，默认关闭
+  // 多模态预处理器已移至 src/experimental/multimodal/，启用方式：config.toml 设 [perception] enabled = true
+  perception: {
+    enabled: false,
   },
 };
 

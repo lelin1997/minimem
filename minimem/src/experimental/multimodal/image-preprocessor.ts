@@ -6,7 +6,7 @@
 
 import { getLogger } from '../../common/logger.js';
 import { getConfig } from '../../config/index.js';
-import type { Preprocessor, PreprocessResult, MultimodalInput } from './index.js';
+import type { Preprocessor, PreprocessResult, MultimodalInput } from '../../core/preprocessor/index.js';
 
 const log = getLogger('core:preprocessor:image');
 

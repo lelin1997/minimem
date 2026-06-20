@@ -44,7 +44,7 @@ const MOCK_URL = 'https://docs.example.com/minimem-architecture';
 const mockFetch = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>();
 
 // Mock validateUrl 绕过 SSRF 检查（不 mock 整个模块，而是 mock 函数）
-vi.mock('../../src/core/preprocessor/url-security.js', () => ({
+vi.mock('../../src/experimental/multimodal/url-security.js', () => ({
   validateUrl: vi.fn().mockResolvedValue({ valid: true, resolvedUrl: 'https://docs.example.com/minimem-architecture' }),
   isPrivateIP: vi.fn().mockReturnValue(false),
   ALLOWED_PROTOCOLS: new Set(['http:', 'https:']),
@@ -56,9 +56,9 @@ vi.mock('../../src/core/preprocessor/url-security.js', () => ({
 // 因为原始代码中的 require() 在 vitest ESM 环境下无法正确加载
 vi.mock('../../src/core/preprocessor/index.js', async (importOriginal) => {
   const original = await importOriginal() as any;
-  const { UrlPreprocessor } = await import('../../src/core/preprocessor/url-preprocessor.js');
-  const { FilePreprocessor } = await import('../../src/core/preprocessor/file-preprocessor.js');
-  const { ImagePreprocessor } = await import('../../src/core/preprocessor/image-preprocessor.js');
+  const { UrlPreprocessor } = await import('../../src/experimental/multimodal/url-preprocessor.js');
+  const { FilePreprocessor } = await import('../../src/experimental/multimodal/file-preprocessor.js');
+  const { ImagePreprocessor } = await import('../../src/experimental/multimodal/image-preprocessor.js');
 
   let _router: InstanceType<typeof original.InputRouter> | null = null;
 

@@ -3,7 +3,10 @@
 // MiniMem — CLI 工具
 // ============================================================
 
-import { resolve } from 'path';
+import { resolve, join, dirname } from 'path';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import * as readline from 'readline';
+import { fileURLToPath } from 'url';
 import { loadConfig } from '../config/index.js';
 import { initDb, closeDb, getDb } from '../store/database.js';
 import { SCHEMA_SQL, SEED_SURFACE_FILES_SQL, SEED_BRANCH_SQL, SEED_META_SQL } from '../store/schema.js';
@@ -26,13 +29,16 @@ async function main(): Promise<void> {
     return;
   }
 
-  // 初始化配置和数据库（除了 init 命令）
+  // init 命令在配置生成前执行（配置可能还不存在）
+  if (command === 'init') {
+    await cmdInit();
+    return;
+  }
+
+  // 其他命令需要配置已加载
   loadConfig();
 
   switch (command) {
-    case 'init':
-      await cmdInit();
-      break;
     case 'status':
       await cmdStatus();
       break;
@@ -95,8 +101,127 @@ MiniMem CLI — 个人统一记忆系统
   `);
 }
 
+// ── minimem init 交互式配置 ──
+
+interface InitAnswers {
+  provider: 'deepseek' | 'openai' | 'dashscope' | 'custom';
+  apiKey: string;
+  baseUrl: string;
+  heavyModel: string;
+  mediumModel: string;
+  lightModel: string;
+  dataDir: string;
+}
+
+const PROVIDER_PRESETS: Record<string, { baseUrl: string; heavy: string; medium: string; light: string }> = {
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', heavy: 'deepseek-chat', medium: 'deepseek-chat', light: 'deepseek-chat' },
+  openai: { baseUrl: 'https://api.openai.com/v1', heavy: 'gpt-4o', medium: 'gpt-4o-mini', light: 'gpt-4o-mini' },
+  dashscope: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', heavy: 'qwen-max', medium: 'qwen-plus', light: 'qwen-turbo' },
+};
+
+function ask(rl: readline.Interface, question: string, defaultValue?: string): Promise<string> {
+  const hint = defaultValue ? ` [${defaultValue}]` : '';
+  return new Promise(resolve => {
+    rl.question(`${question}${hint}: `, answer => {
+      resolve(answer.trim() || defaultValue || '');
+    });
+  });
+}
+
+async function runInteractiveInit(): Promise<InitAnswers> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+  console.log('\n🚀 MiniMem 初始化向导\n');
+  console.log('将在 ~/.minimem/ 下生成配置文件并创建数据目录。\n');
+
+  console.log('选择 LLM 提供商:');
+  console.log('  1. DeepSeek  (推荐, 性价比高)');
+  console.log('  2. OpenAI');
+  console.log('  3. 阿里云百炼 (DashScope)');
+  console.log('  4. 自定义 (OpenAI 兼容接口)');
+  const providerChoice = await ask(rl, '请选择 (1-4)', '1');
+  const providerMap: Record<string, InitAnswers['provider']> = {
+    '1': 'deepseek', '2': 'openai', '3': 'dashscope', '4': 'custom',
+  };
+  const provider = providerMap[providerChoice] || 'deepseek';
+
+  const preset = PROVIDER_PRESETS[provider];
+  const apiKey = await ask(rl, '请输入 API Key');
+  const baseUrl = preset ? await ask(rl, 'API Base URL', preset.baseUrl) : await ask(rl, 'API Base URL');
+  const heavyModel = preset ? await ask(rl, 'Heavy 模型 (深度推理)', preset.heavy) : await ask(rl, 'Heavy 模型 (深度推理)');
+  const mediumModel = preset ? await ask(rl, 'Medium 模型 (结构化提取)', preset.medium) : await ask(rl, 'Medium 模型 (结构化提取)');
+  const lightModel = preset ? await ask(rl, 'Light 模型 (快速分类)', preset.light) : await ask(rl, 'Light 模型 (快速分类)');
+  const dataDir = await ask(rl, '数据目录', resolve(process.env.HOME || '~', '.minimem'));
+
+  rl.close();
+
+  return { provider, apiKey, baseUrl, heavyModel, mediumModel, lightModel, dataDir };
+}
+
+function generateConfigToml(a: InitAnswers): string {
+  return `# MiniMem 配置文件 — 由 minimem init 生成
+# 生成时间: ${new Date().toISOString()}
+
+[server]
+host = "127.0.0.1"
+port = 6677
+
+[llm]
+provider = "openai-compatible"
+api_key_env = "MINIMEM_LLM_API_KEY"
+base_url = "${a.baseUrl}"
+
+[llm.models]
+heavy = "${a.heavyModel}"
+medium = "${a.mediumModel}"
+light = "${a.lightModel}"
+
+[llm.embedding]
+enabled = true
+model = "text-embedding-v3"
+dimensions = 1024
+
+[storage]
+data_dir = "${a.dataDir}"
+`;
+}
+
 async function cmdInit(): Promise<void> {
-  console.log('🚀 Initializing MiniMem...');
+  const args = process.argv.slice(2);
+  const configPath = resolve(process.env.HOME || '~', '.minimem', 'config.toml');
+  const configExists = existsSync(configPath);
+
+  // 如果配置已存在且没有 --force，直接走 DB 初始化
+  if (configExists && !args.includes('--force')) {
+    console.log('ℹ️  配置文件已存在:', configPath);
+    console.log('   如需重新配置，请使用: minimem init --force\n');
+  } else {
+    // 交互式配置生成
+    const answers = await runInteractiveInit();
+
+    // 创建数据目录
+    const dataDir = answers.dataDir.replace('~', process.env.HOME || '~');
+    if (!existsSync(dataDir)) {
+      mkdirSync(dataDir, { recursive: true });
+      console.log(`\n✅ 数据目录已创建: ${dataDir}`);
+    }
+
+    // 写入配置文件
+    const configDir = dirname(configPath);
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+    }
+    writeFileSync(configPath, generateConfigToml(answers), 'utf-8');
+    console.log(`✅ 配置文件已生成: ${configPath}`);
+
+    // 提示设置环境变量
+    console.log(`\n⚠️  请设置环境变量:`);
+    console.log(`    export MINIMEM_LLM_API_KEY="${answers.apiKey}"`);
+    console.log(`    (或写入 ${dataDir}/.env 文件)\n`);
+  }
+
+  // 初始化数据库
+  console.log('🚀 Initializing MiniMem database...');
   loadConfig();
   initDb();
   const db = getDb();
@@ -111,6 +236,7 @@ async function cmdInit(): Promise<void> {
   // 同步 Surface Files 到磁盘
   const synced = syncAllSurfacesToDisk();
   console.log(`✅ Surface files synced to disk (${synced} files)`);
+  console.log('\n🎉 MiniMem 初始化完成！使用 `minimem dev` 启动服务。');
 }
 
 async function cmdStatus(): Promise<void> {

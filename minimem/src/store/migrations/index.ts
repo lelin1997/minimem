@@ -141,11 +141,16 @@ export const migrations: Migration[] = [
   },
 
   // Version 7: Async Ingest — 为 experiences 添加 processed 字段（异步摄入支持）
+  // 注意：schema.ts 建表时已包含 processed 列，此处用幂等检查避免重复添加
   {
     version: 7,
     name: 'add_processed_to_experiences',
     up(db) {
-      db.exec('ALTER TABLE experiences ADD COLUMN processed INTEGER NOT NULL DEFAULT 1');
+      const cols = db.prepare("PRAGMA table_info(experiences)").all() as Array<{ name: string }>;
+      const hasProcessed = cols.some(c => c.name === 'processed');
+      if (!hasProcessed) {
+        db.exec('ALTER TABLE experiences ADD COLUMN processed INTEGER NOT NULL DEFAULT 1');
+      }
       db.exec('CREATE INDEX IF NOT EXISTS idx_experiences_processed ON experiences(processed)');
     },
     down(db) {

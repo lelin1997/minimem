@@ -1,5 +1,5 @@
 // ============================================================
-// MiniMem — Dream Engine: Phase 2 — Karpathy Compile 编译器
+// MiniMem — Dream Engine: Phase 2 — Knowledge Compile 编译器
 // ============================================================
 
 import { getLogger } from '../../common/logger.js';
@@ -38,7 +38,7 @@ const DEFAULT_COMPILE_PARAMS: CompileProfile = {
 };
 
 /**
- * Phase 2: 深度睡眠 — 记忆巩固 + Karpathy Compile
+ * Phase 2: 深度睡眠 — 记忆巩固 + Knowledge Compile
  *
  * @param params - 编译参数（各批次大小），由 DreamProfile 控制
  */
@@ -84,7 +84,7 @@ export async function runCompile(params?: CompileProfile): Promise<CompileResult
     log.info('L3→L4 promotion skipped (daily mode)');
   }
 
-  // 4. 处理 compile_queue (Karpathy Compile)
+  // 4. 处理 compile_queue (Knowledge Compile)
   try {
     const compileStats = await processCompileQueue(p.compileQueue);
     result.pages_created = compileStats.created;

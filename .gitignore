@@ -11,8 +11,47 @@ __MACOSX/
 .codebuddy/
 .vscode/
 .idea/
+.workbuddy/
 
 # (minimem & minimem-console have their own .gitignore for node_modules etc.)
 
 # Data directory (full)
 minimem/data/
+
+# ── 隐私 / 密钥防御性规则 (防止任何敏感文件被误提交) ──
+# 环境变量与本地配置
+.env
+.env.*
+!.env.example
+*.local.toml
+*.local.json
+*.local.yaml
+*.local.yml
+config.toml
+config.local.*
+
+# 密钥 / 证书
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.secret
+*.token
+*.credential
+
+# 运行时个人数据 (surface 实例 / references / 日志)
+**/surfaces/me.md
+**/surfaces/soul.md
+**/surfaces/work.md
+**/surfaces/social.md
+**/surfaces/life.md
+**/surfaces/context.md
+references/
+logs/
+*.log
+
+# 用户运行时目录快照
+.minimem/
+.minimem-console/

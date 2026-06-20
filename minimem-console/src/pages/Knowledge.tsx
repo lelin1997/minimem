@@ -91,7 +91,7 @@ export default function Knowledge() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">知识库</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            由 Karpathy Dream 引擎编译产出的知识卡片
+            由 Dream 引擎的 Knowledge Compile 编译产出的知识卡片
             {data && <span className="ml-2 text-xs">共 {data.total} 条</span>}
           </p>
         </div>
@@ -502,7 +502,7 @@ function EmptyState() {
       </div>
       <h3 className="text-sm font-medium">暂无知识</h3>
       <p className="mt-1 text-xs text-muted-foreground max-w-sm text-center">
-        知识由 Dream 引擎的 Karpathy 编译层自动生成，无需手动创建。
+        知识由 Dream 引擎的 Knowledge Compile 编译层自动生成，无需手动创建。
       </p>
     </div>
   );

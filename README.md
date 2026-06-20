@@ -7,24 +7,23 @@
 
 # 🧠 MiniMem
 
-**A Personal Unified Memory System — The Central Memory Service for AI Agents**
+**A Self-Hosted Personal Memory System — The Central Memory for AI Agents**
 
-MiniMem gives AI agents persistent, structured, and retrievable memory. Built on a **L1→L4 four-layer memory pyramid**, it uses a **Dream Engine** to automatically distill raw experiences into structured knowledge during nightly sleep cycles.
+MiniMem gives AI agents persistent, structured, and retrievable memory. Built for **single-machine self-hosting** (sqlite + 127.0.0.1 + single API token), it uses a **L1→L4 four-layer memory pyramid** and a **Dream Engine** to automatically distill raw experiences into structured knowledge during nightly sleep cycles. Multi-tenant / JWT / domain isolation is deferred to v0.3+ — see roadmap.
 
 ---
 
 ## ✨ Features
 
 - **🧩 L1→L4 Memory Pyramid** — From raw experiences to mental models, layered compression with increasing abstraction
-- **🌙 Dream Engine** — 4-phase nightly pipeline: Audit → Compile (Karpathy Compile) → Dream → Cleanup
-- **📝 Karpathy Compile** — LLM-driven knowledge synthesis: generates bi-directionally linked knowledge pages with version history
+- **🌙 Dream Engine** — 4-phase nightly pipeline: Audit → Compile (Knowledge Compile) → Dream → Cleanup
+- **📝 Knowledge Compile** — LLM-driven knowledge synthesis: generates bi-directionally linked knowledge pages with version history
 - **🔗 MCP Protocol** — Native Model Context Protocol support (stdio + Streamable HTTP)
 - **🧭 Vector Retrieval** — In-memory HNSW index + FTS5 full-text search + conditional indexing
 - **📦 Surface Files** — Agent-readable Markdown files (me/soul/work/social/life profiles)
-- **💡 Inspiration Engine** — Cross-domain memory collision for creative sparks
+- **💡 Inspiration Engine** *(experimental)* — Cross-domain memory collision for creative sparks
 - **🔄 Version Control** — Snapshots + branching + rollback for safe memory evolution
-- **🌡️ Temperature Decay** — Ebbinghaus forgetting curve + tiered compression
-- **🔐 Multi-tenant** — JWT auth + client permission levels + domain isolation
+- **🌡️ Temperature Decay** — Tiered compression with configurable decay models (linear/logarithmic/ebbinghaus)
 
 ---
 
@@ -114,7 +113,7 @@ MiniMem Console is a standalone web dashboard providing:
 
 - 📊 Dashboard — system overview & stats
 - 🧠 Memory Browser — search, browse, edit memories
-- 📄 Knowledge Pages — view Karpathy Compile results
+- 📄 Knowledge Pages — view Knowledge Compile results
 - 👤 Owner Profile — manage your agent's identity
 - 🔄 Pipeline Editor — visual data pipeline orchestration
 
@@ -174,6 +173,6 @@ MIT © MiniMem Contributors
 
 ## 🙏 Acknowledgements
 
-- [Andrej Karpathy](https://karpathy.ai/) — inspiration for LLM-driven knowledge compilation
+- [Andrej Karpathy](https://karpathy.ai/) — inspiration for LLM-driven knowledge compilation (Note: MiniMem's "Knowledge Compile" is an independent implementation inspired by Karpathy's LLM Wiki concept; not affiliated with or endorsed by Karpathy)
 - [Hono](https://hono.dev/) — lightweight web framework
 - [Model Context Protocol](https://modelcontextprotocol.io/) — AI agent interoperability standard
