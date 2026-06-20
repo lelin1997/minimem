@@ -26,6 +26,15 @@ export const MiniMemConfigSchema = z.object({
     mode: ServerModeSchema,
   }),
 
+  // TODO-040: MCP tools 分级
+  mcp: z.object({
+    tools: z.object({
+      exposure_level: z.enum(['core', 'advanced', 'experimental']).optional(),
+      enabled: z.array(z.string()).optional(),
+      disabled: z.array(z.string()).optional(),
+    }).optional(),
+  }).optional(),
+
   auth: z.object({
     enabled: z.boolean(),
     jwt_secret_env: z.string(),

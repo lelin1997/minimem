@@ -83,8 +83,10 @@ export function createMCPServer(getClient?: () => Partial<Client>): Server {
   // ── 注册工具列表 ──
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [
+    // TODO-040: 按 config.mcp.tools 分级过滤
+    const config = getConfig();
+    const toolsConfig = config.mcp?.tools ?? {};
+    const allTools = [
         // 📝 记忆写入
         {
           name: 'add_memory',
@@ -645,7 +647,18 @@ export function createMCPServer(getClient?: () => Partial<Client>): Server {
             },
           },
         },
-      ],
+    ];
+
+    // TODO-040: 按分级过滤 tool
+    const { shouldExposeTool } = await import('./tool-tiers.js');
+    const exposedTools = allTools.filter(t => shouldExposeTool(t.name, toolsConfig));
+    log.info(
+      { total: allTools.length, exposed: exposedTools.length, level: toolsConfig.exposure_level ?? 'core' },
+      'MCP tools exposed (TODO-040 tiered)',
+    );
+
+    return {
+      tools: exposedTools,
     };
   });
 
