@@ -465,7 +465,16 @@ CREATE TABLE IF NOT EXISTS dream_logs (
   pre_snapshot_id TEXT,
   post_snapshot_id TEXT,
   duration_ms INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  -- TODO-029: 可观测性扩展字段
+  seeds_json TEXT NOT NULL DEFAULT '[]',           -- 种子记忆 ID 列表
+  pairs_json TEXT NOT NULL DEFAULT '[]',           -- 配对记忆对
+  llm_output_summary TEXT NOT NULL DEFAULT '',     -- LLM 输出摘要
+  new_connections INTEGER NOT NULL DEFAULT 0,      -- 新建记忆连接数
+  insights_count INTEGER NOT NULL DEFAULT 0,       -- 产出 insight 数
+  conflicts_count INTEGER NOT NULL DEFAULT 0,      -- 冲突数
+  quality_score REAL NOT NULL DEFAULT 0,           -- 质量评分 (0-1, <0.3 低质量)
+  quality_factors_json TEXT NOT NULL DEFAULT '{}'  -- 评分因子明细
 );
 
 CREATE INDEX IF NOT EXISTS idx_dream_logs_session ON dream_logs(session_id);

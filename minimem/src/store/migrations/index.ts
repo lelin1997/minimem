@@ -162,4 +162,38 @@ export const migrations: Migration[] = [
       }
     },
   },
+
+  // Version 8: TODO-029 — dream_logs 可观测性扩展
+  // 新增 seeds/pairs/llm_output/new_connections/insights/conflicts/quality_score 字段
+  {
+    version: 8,
+    name: 'extend_dream_logs_observability',
+    up(db) {
+      const cols = db.prepare("PRAGMA table_info(dream_logs)").all() as Array<{ name: string }>;
+      const hasSeeds = cols.some(c => c.name === 'seeds_json');
+
+      if (!hasSeeds) {
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN seeds_json TEXT NOT NULL DEFAULT '[]'`);
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN pairs_json TEXT NOT NULL DEFAULT '[]'`);
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN llm_output_summary TEXT NOT NULL DEFAULT ''`);
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN new_connections INTEGER NOT NULL DEFAULT 0`);
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN insights_count INTEGER NOT NULL DEFAULT 0`);
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN conflicts_count INTEGER NOT NULL DEFAULT 0`);
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN quality_score REAL NOT NULL DEFAULT 0`);
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN quality_factors_json TEXT NOT NULL DEFAULT '{}'`);
+      }
+      // 质量评分索引（用于快速筛选低质量 dream）
+      db.exec('CREATE INDEX IF NOT EXISTS idx_dream_logs_quality ON dream_logs(quality_score) WHERE quality_score < 0.3');
+    },
+    down(db) {
+      // SQLite 不支持批量 DROP COLUMN，逐个尝试
+      for (const col of ['seeds_json', 'pairs_json', 'llm_output_summary', 'new_connections', 'insights_count', 'conflicts_count', 'quality_score', 'quality_factors_json']) {
+        try {
+          db.exec(`ALTER TABLE dream_logs DROP COLUMN ${col}`);
+        } catch {
+          // 忽略不支持 DROP COLUMN 的旧 SQLite
+        }
+      }
+    },
+  },
 ];

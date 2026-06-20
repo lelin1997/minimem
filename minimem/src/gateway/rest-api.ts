@@ -1024,20 +1024,65 @@ export function createRestApp(): Hono {
     return c.json(diff);
   });
 
-  // ── 做梦（占位） ──
+  // ── 做梦 (TODO-033: 完善 trigger API) ──
 
   app.post('/api/v1/dream/trigger', async (c) => {
-    const body = await c.req.json().catch(() => ({})) as { mode?: string; phases?: number[] };
-    const { triggerDream, getDreamReportMarkdown } = await import('../modules/dream/dream-engine.js');
-    const session = await triggerDream({
-      mode: (body.mode === 'weekly' ? 'weekly' : 'daily'),
-      phases: body.phases,
-    });
-    return c.json({
-      session_id: session.session_id,
-      status: session.status,
-      report_markdown: getDreamReportMarkdown(session),
-    });
+    const body = await c.req.json().catch(() => ({})) as {
+      mode?: string;
+      phases?: number[];
+      force?: boolean;
+    };
+
+    // 参数校验
+    const validModes = ['daily', 'weekly'];
+    const mode = body.mode && validModes.includes(body.mode) ? body.mode : 'daily';
+    const phases = Array.isArray(body.phases)
+      ? body.phases.filter(p => [0, 1, 2, 3].includes(p))
+      : undefined;
+
+    try {
+      const { triggerDream, getDreamReportMarkdown } = await import('../modules/dream/dream-engine.js');
+      const session = await triggerDream({
+        mode: mode as 'daily' | 'weekly',
+        phases,
+      });
+
+      // 从 dream_logs 读取最新的 quality_score
+      const { getDb } = await import('../store/database.js');
+      const db = getDb();
+      const qualityRow = db.prepare(`
+        SELECT quality_score, quality_factors_json, new_connections, insights_count, conflicts_count
+        FROM dream_logs
+        WHERE session_id = ? AND phase = 4
+        ORDER BY created_at DESC LIMIT 1
+      `).get(session.session_id) as {
+        quality_score: number;
+        quality_factors_json: string;
+        new_connections: number;
+        insights_count: number;
+        conflicts_count: number;
+      } | undefined;
+
+      return c.json({
+        session_id: session.session_id,
+        status: session.status,
+        error: session.error,
+        report_markdown: getDreamReportMarkdown(session),
+        quality: qualityRow ? {
+          score: qualityRow.quality_score,
+          is_low_quality: qualityRow.quality_score < 0.3,
+          new_connections: qualityRow.new_connections,
+          insights: qualityRow.insights_count,
+          conflicts: qualityRow.conflicts_count,
+          factors: JSON.parse(qualityRow.quality_factors_json || '{}'),
+        } : null,
+      });
+    } catch (err) {
+      return c.json({
+        error: (err as Error).message,
+        code: 'DREAM_TRIGGER_FAILED',
+      }, 500);
+    }
   });
 
   // ── R-020: Onboarding (与 MCP 对齐) ──

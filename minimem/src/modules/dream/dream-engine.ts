@@ -304,9 +304,34 @@ export async function triggerDream(options?: DreamOptions): Promise<DreamSession
     }
 
     // 写入 dream_logs 总记录
+    // TODO-029/030/031: 含可观测性扩展字段 + quality_score
+    const { calculateDreamQuality, extractQualityFactors } = await import('./quality-score.js');
+    const qualityFactors = extractQualityFactors(report, {
+      newConnections: report.consolidation?.l1_to_l2_extracted ?? 0,
+      insights: report.pages?.created ?? 0,
+      conflicts: 0, // 冲突检测待 B4 补充
+      llmSelfScore: 0.5, // TODO: 从 dreamer LLM 输出提取自评分
+      processedMemories: (report.consolidation?.l1_to_l2_extracted ?? 0) +
+                         (report.consolidation?.l2_to_l3_induced ?? 0) +
+                         (report.consolidation?.l3_to_l4_proposed ?? 0),
+    });
+    const qualityResult = calculateDreamQuality(qualityFactors);
+
+    const seedsJson = JSON.stringify([]); // TODO: 从 dreamer 内部状态提取种子 ID
+    const pairsJson = JSON.stringify([]); // TODO: 从 dreamer 内部状态提取配对
+    const llmOutputSummary = (report.dream?.narrative_summary ?? '').slice(0, 2000);
+
     db.prepare(`
-      INSERT INTO dream_logs (id, session_id, phase, narrative, l1_to_l2, l2_to_l3, l3_to_l4, pages_created, pages_updated, compile_queue_processed, pre_snapshot_id, post_snapshot_id, duration_ms, created_at)
-      VALUES (?, ?, 4, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dream_logs (
+        id, session_id, phase, narrative,
+        l1_to_l2, l2_to_l3, l3_to_l4,
+        pages_created, pages_updated, compile_queue_processed,
+        pre_snapshot_id, post_snapshot_id, duration_ms, created_at,
+        seeds_json, pairs_json, llm_output_summary,
+        new_connections, insights_count, conflicts_count,
+        quality_score, quality_factors_json
+      )
+      VALUES (?, ?, 4, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       generateId(), sessionId,
       report.dream.narrative_summary.slice(0, 1000),
@@ -320,7 +345,21 @@ export async function triggerDream(options?: DreamOptions): Promise<DreamSession
       report.version_control.post_snapshot_id,
       totalDuration,
       now(),
+      seedsJson,
+      pairsJson,
+      llmOutputSummary,
+      qualityFactors.newConnections,
+      qualityFactors.insights,
+      qualityFactors.conflicts,
+      qualityResult.score,
+      JSON.stringify({ ...qualityFactors, explanation: qualityResult.explanation }),
     );
+
+    if (qualityResult.isLowQuality) {
+      log.warn({ sessionId, qualityScore: qualityResult.score, explanation: qualityResult.explanation }, '⚠️ Dream marked low quality (score < 0.3)');
+    } else {
+      log.info({ sessionId, qualityScore: qualityResult.score }, 'Dream quality score calculated');
+    }
 
     log.info({ sessionId, duration: totalDuration, status: 'completed' }, '🌅 Dream session completed');
   } catch (err) {
