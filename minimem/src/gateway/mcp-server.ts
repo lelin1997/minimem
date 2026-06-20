@@ -42,6 +42,8 @@ import {
   DEFAULT_TRUSTED_CLIENT,
 } from './mcp-auth.js';
 import { AuthenticationError, AuthorizationError, MiniMemError } from '../common/errors.js';
+// TODO-015/016/017: Surface 注入中间件
+import { buildSurfaceInjection, getCurrentEtag, hasSurfaceChanged } from '../surface/injector.js';
 
 const log = getLogger('gateway:mcp');
 
@@ -643,11 +645,25 @@ export function createMCPServer(getClient?: () => Partial<Client>): Server {
       throw err;
     }
 
+    // TODO-017: 记录调用前的 Surface etag，用于执行后检测变化
+    const etagBefore = getCurrentEtag();
+
     // ② 执行 Tool + 审计
     try {
       const result = await executeToolCall(name, args);
       const latencyMs = Date.now() - startTime;
       auditToolCall({ client, toolName: name, args: args as Record<string, unknown>, latencyMs });
+
+      // TODO-016/017: Surface 变化检测 — 如果工具执行期间 Surface 被更新，附加提示
+      const etagAfter = getCurrentEtag();
+      if (hasSurfaceChanged(etagBefore) && etagBefore !== etagAfter) {
+        const surfaceHint = `\n\n<!-- surface_updated: etag=${etagAfter} (was ${etagBefore}). Surface files changed during this tool call. Call load_surfaces to refresh. -->`;
+        if (result.content && result.content.length > 0) {
+          result.content[0] = { ...result.content[0], text: result.content[0].text + surfaceHint };
+        }
+        log.info({ tool: name, etagBefore, etagAfter }, 'Surface changed during tool call, hint appended');
+      }
+
       return result;
     } catch (err) {
       const latencyMs = Date.now() - startTime;
@@ -927,14 +943,9 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
           const topK = params.top_k ?? ctxCfg?.default_top_k ?? 5;
           const maxTotalTokens = ctxCfg?.max_total_tokens ?? 8000;
 
-          // 加载 Surface Files
-          const surfaceFiles = loadSurfacesForAgent(agentType);
-
-          // 计算 Surface Files 占用的 token 预算（粗估: 1 token ≈ 2 字符 for 中文，4 字符 for 英文）
-          let surfaceTokens = 0;
-          for (const content of Object.values(surfaceFiles)) {
-            surfaceTokens += Math.ceil(content.length / 2);
-          }
+          // TODO-015/018: 用 injector 构建 <surface_files> 注入文本（含 token 裁剪）
+          const injection = buildSurfaceInjection(agentType);
+          const surfaceTokens = injection.tokens;
 
           // 剩余 token 预算留给深层检索结果
           const remainingBudget = Math.max(1000, maxTotalTokens - surfaceTokens);
@@ -980,7 +991,11 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
             content: [{
               type: 'text' as const,
               text: JSON.stringify({
-                surface_files: surfaceFiles,
+                // TODO-015: 返回 <surface_files> XML 注入文本（供 agent 直接放入 system prompt）
+                surface_injection: injection.text,
+                surface_etag: injection.etag,
+                surface_files_included: injection.filesIncluded,
+                surface_files_trimmed: injection.filesTrimmed,
                 deep_results: trimmedResults.map(r => ({ id: r.id, layer: r.layer, content: r.content, score: r.score })),
                 direct_answer: response.direct_answer,
                 hints,
