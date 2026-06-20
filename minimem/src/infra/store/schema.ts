@@ -617,6 +617,64 @@ CREATE INDEX IF NOT EXISTS idx_inspirations_domain ON inspirations(domain);
 CREATE INDEX IF NOT EXISTS idx_inspirations_confidence ON inspirations(confidence DESC);
 CREATE INDEX IF NOT EXISTS idx_inspirations_expires ON inspirations(expires_at);
 CREATE INDEX IF NOT EXISTS idx_inspirations_created ON inspirations(created_at DESC);
+
+-- ============================================================
+-- TODO-039: memories 统一视图 (P3 C4)
+-- 四层记忆表合并的视图层实现，保持物理表不变，提供统一查询入口
+-- 通过 layer 字段区分: L1=experiences, L2=world_facts, L3=observations, L4=mental_models
+-- ============================================================
+CREATE VIEW IF NOT EXISTS memories AS
+SELECT
+  id, 'L1' AS layer, raw_content AS content, source, importance,
+  tags, participants, context, content_hash, embedding_id, processed,
+  NULL AS subject, NULL AS predicate, NULL AS object,
+  NULL AS description, NULL AS observation_type, NULL AS title, NULL AS model_type,
+  NULL AS confidence, NULL AS valid_from, NULL AS valid_until,
+  NULL AS supporting_fact_ids, NULL AS contradicting_fact_ids,
+  NULL AS evidence_experience_ids, NULL AS condition_keys,
+  NULL AS confidence_history, NULL AS drift_risk,
+  NULL AS priority, NULL AS scope, NULL AS origin, NULL AS is_active,
+  snapshot_id, branch, domain, created_at, updated_at
+FROM experiences
+UNION ALL
+SELECT
+  id, 'L2' AS layer, object AS content, source, NULL AS importance,
+  '[]' AS tags, '[]' AS participants, NULL AS context, NULL AS content_hash, NULL AS embedding_id, NULL AS processed,
+  subject, predicate, object,
+  NULL AS description, NULL AS observation_type, NULL AS title, NULL AS model_type,
+  confidence, valid_from, valid_until,
+  NULL AS supporting_fact_ids, NULL AS contradicting_fact_ids,
+  evidence_experience_ids, condition_keys,
+  NULL AS confidence_history, NULL AS drift_risk,
+  NULL AS priority, NULL AS scope, NULL AS origin, NULL AS is_active,
+  snapshot_id, branch, domain, created_at, updated_at
+FROM world_facts
+UNION ALL
+SELECT
+  id, 'L3' AS layer, description AS content, NULL AS source, NULL AS importance,
+  tags, '[]' AS participants, NULL AS context, NULL AS content_hash, NULL AS embedding_id, NULL AS processed,
+  NULL AS subject, NULL AS predicate, NULL AS object,
+  description, observation_type, NULL AS title, NULL AS model_type,
+  confidence, NULL AS valid_from, NULL AS valid_until,
+  supporting_fact_ids, contradicting_fact_ids,
+  NULL AS evidence_experience_ids, NULL AS condition_keys,
+  confidence_history, drift_risk,
+  NULL AS priority, NULL AS scope, NULL AS origin, NULL AS is_active,
+  snapshot_id, branch, domain, created_at, updated_at
+FROM observations
+UNION ALL
+SELECT
+  id, 'L4' AS layer, content, NULL AS source, NULL AS importance,
+  '[]' AS tags, '[]' AS participants, NULL AS context, NULL AS content_hash, NULL AS embedding_id, NULL AS processed,
+  NULL AS subject, NULL AS predicate, NULL AS object,
+  NULL AS description, NULL AS observation_type, title, model_type,
+  NULL AS confidence, NULL AS valid_from, NULL AS valid_until,
+  NULL AS supporting_fact_ids, NULL AS contradicting_fact_ids,
+  NULL AS evidence_experience_ids, NULL AS condition_keys,
+  NULL AS confidence_history, NULL AS drift_risk,
+  priority, scope, origin, is_active,
+  snapshot_id, branch, domain, created_at, updated_at
+FROM mental_models;
 `;
 
 /**
