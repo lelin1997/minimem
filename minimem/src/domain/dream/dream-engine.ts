@@ -347,9 +347,10 @@ export async function triggerDream(options?: DreamOptions): Promise<DreamSession
         pre_snapshot_id, post_snapshot_id, duration_ms, created_at,
         seeds_json, pairs_json, llm_output_summary,
         new_connections, insights_count, conflicts_count,
-        quality_score, quality_factors_json
+        quality_score, quality_factors_json,
+        surface_changes_json
       )
-      VALUES (?, ?, 4, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, 4, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       generateId(), sessionId,
       report.dream.narrative_summary.slice(0, 1000),
@@ -371,6 +372,8 @@ export async function triggerDream(options?: DreamOptions): Promise<DreamSession
       qualityFactors.conflicts,
       qualityResult.score,
       JSON.stringify({ ...qualityFactors, explanation: qualityResult.explanation }),
+      // TODO-027: 写入 Phase 4 Surface 变更记录
+      JSON.stringify(cleanupResult?.surface_changes ?? []),
     );
 
     if (qualityResult.isLowQuality) {
@@ -433,7 +436,7 @@ function createEmptyDream(): DreamResult {
 }
 
 function createEmptyCleanup(preSnapshotId: string): CleanupResult {
-  return { gc_deleted: 0, gc_compressed: 0, surface_synced: 0, surface_updates: 0, post_snapshot_id: preSnapshotId, diff: null, merge: null };
+  return { gc_deleted: 0, gc_compressed: 0, surface_synced: 0, surface_updates: 0, surface_changes: [], post_snapshot_id: preSnapshotId, diff: null, merge: null };
 }
 
 // ── 磁盘持久化 ──

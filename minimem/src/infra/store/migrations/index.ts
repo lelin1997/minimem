@@ -196,4 +196,22 @@ export const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 9,
+    name: 'add_surface_changes_json_to_dream_logs',
+    up(db) {
+      const cols = db.prepare("PRAGMA table_info(dream_logs)").all() as Array<{ name: string }>;
+      const hasCol = cols.some(c => c.name === 'surface_changes_json');
+      if (!hasCol) {
+        db.exec(`ALTER TABLE dream_logs ADD COLUMN surface_changes_json TEXT NOT NULL DEFAULT '[]'`);
+      }
+    },
+    down(db) {
+      try {
+        db.exec(`ALTER TABLE dream_logs DROP COLUMN surface_changes_json`);
+      } catch {
+        // 忽略
+      }
+    },
+  },
 ];

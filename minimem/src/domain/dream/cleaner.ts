@@ -4,7 +4,7 @@
 
 import { getLogger } from '../../common/logger.js';
 import { runStandardGC } from '../../domain/lifecycle/index.js';
-import { processUpdateQueue } from '../../domain/surface/index.js';
+import { processUpdateQueue, getSurfaceFile } from '../../domain/surface/index.js';
 import { syncSurfaces } from '../../domain/surface/sync.js';
 import { createSnapshot } from '../../domain/version/snapshot.js';
 import { diffSnapshots } from '../../domain/version/diff.js';
@@ -16,11 +16,20 @@ import type { SurfaceFileName } from '../../common/types.js';
 
 const log = getLogger('dream:cleaner');
 
+/** TODO-027: Surface 变更记录（哪个文件改了，版本从几到几） */
+export interface SurfaceChange {
+  file_name: string;
+  changed: boolean;
+  version_before: number;
+  version_after: number;
+}
+
 export interface CleanupResult {
   gc_deleted: number;
   gc_compressed: number;
   surface_synced: number;
   surface_updates: number;
+  surface_changes: SurfaceChange[];
   post_snapshot_id: string;
   diff: MemoryDiff | null;
   merge: MergeResult | null;
@@ -45,6 +54,14 @@ export async function runCleanup(
   log.info({ deleted: gcResult.deleted, compressed: gcResult.compressed }, 'GC completed');
 
   // 2. Surface Sync（Issue-23: 从业务模块自动收集数据，写入 surface_update_queue）
+  // TODO-027: 记录 sync 前各文件版本，用于检测变更
+  const filesToTrack = surfaceFiles ?? [];
+  const versionBefore = new Map<string, number>();
+  for (const fn of filesToTrack) {
+    const f = getSurfaceFile(fn);
+    if (f) versionBefore.set(fn, f.version);
+  }
+
   let surfaceSynced = 0;
   if (surfaceFiles && surfaceFiles.length > 0) {
     try {
@@ -63,6 +80,20 @@ export async function runCleanup(
     log.info({ surfaceUpdates, scope: surfaceFiles ?? 'all' }, 'Surface files updated');
   } catch (err) {
     log.warn({ err }, 'Surface update failed');
+  }
+
+  // TODO-027: 收集实际被更新的文件列表（比较版本号）
+  const surfaceChanges: SurfaceChange[] = [];
+  for (const fn of filesToTrack) {
+    const vBefore = versionBefore.get(fn) ?? 0;
+    const fAfter = getSurfaceFile(fn);
+    const vAfter = fAfter?.version ?? 0;
+    surfaceChanges.push({
+      file_name: fn,
+      changed: vAfter > vBefore,
+      version_before: vBefore,
+      version_after: vAfter,
+    });
   }
 
   // 4. 创建做梦后快照
@@ -109,6 +140,7 @@ export async function runCleanup(
     gc_compressed: gcResult.compressed,
     surface_synced: surfaceSynced,
     surface_updates: surfaceUpdates,
+    surface_changes: surfaceChanges,
     post_snapshot_id: postSnapshot.id,
     diff,
     merge: mergeResult,

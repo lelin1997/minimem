@@ -1165,6 +1165,7 @@ export function createRestApp(): Hono {
         seeds_json, pairs_json, llm_output_summary,
         new_connections, insights_count, conflicts_count,
         quality_score, quality_factors_json,
+        surface_changes_json,
         pre_snapshot_id, post_snapshot_id
       FROM dream_logs
       WHERE session_id = ?
@@ -1185,7 +1186,9 @@ export function createRestApp(): Hono {
     };
 
     // TODO-032: 回放核心 —— 种子 → 配对 → LLM 联想 → 产出
-    // surface_changes: phase=2 或 2.5 的 dream-engine 把 surface_changes JSON 存在 llm_output_summary
+    // surface_changes 来源:
+    //   phase 2/2.5: dream-engine 把 surface_changes JSON 存在 llm_output_summary
+    //   phase 4: TODO-027 修复后, surface_changes_json 字段直接存了变更记录
     const replay = phases.map(p => {
       const phase = p.phase as number;
       const llmRaw = p.llm_output_summary as string;
@@ -1201,6 +1204,17 @@ export function createRestApp(): Hono {
           }
         } catch {
           // 非 JSON 数组，保持原样
+        }
+      }
+      // phase 4: 从 surface_changes_json 字段读取 (TODO-027 修复)
+      if (phase === 4 && p.surface_changes_json) {
+        try {
+          const parsed = JSON.parse(p.surface_changes_json as string);
+          if (Array.isArray(parsed)) {
+            surfaceChanges = parsed;
+          }
+        } catch {
+          // 非 JSON，忽略
         }
       }
       const score = p.quality_score as number | null;

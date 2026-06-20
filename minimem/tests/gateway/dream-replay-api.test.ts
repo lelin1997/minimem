@@ -39,8 +39,8 @@ function insertDreamLog(overrides: Partial<Record<string, unknown>> = {}) {
       pre_snapshot_id, post_snapshot_id, duration_ms, created_at,
       seeds_json, pairs_json, llm_output_summary,
       new_connections, insights_count, conflicts_count,
-      quality_score, quality_factors_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      quality_score, quality_factors_json, surface_changes_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, sessionId, overrides.phase ?? 4,
     overrides.narrative ?? 'test narrative',
@@ -56,6 +56,7 @@ function insertDreamLog(overrides: Partial<Record<string, unknown>> = {}) {
     overrides.conflicts_count ?? 0,
     overrides.quality_score ?? 0.75,
     overrides.quality_factors_json ?? JSON.stringify({ connections: 0.3, output: 0.25 }),
+    overrides.surface_changes_json ?? '[]',
   );
   return { id, sessionId };
 }
@@ -165,6 +166,26 @@ describe('TODO-032: Dream 梦境回放 API', () => {
       expect(phase2.process.surface_changes).toHaveLength(1);
       expect(phase2.process.surface_changes[0].file_name).toBe('work.md');
       expect(phase2.process.llm_output).toBe(''); // 已转移到 surface_changes
+    });
+
+    it('should parse surface_changes from phase 4 surface_changes_json (TODO-027 fix)', async () => {
+      const phase4Changes = [
+        { file_name: 'context.md', changed: true, version_before: 2, version_after: 3 },
+        { file_name: 'me.md', changed: false, version_before: 1, version_after: 1 },
+      ];
+      insertDreamLog({
+        session_id: 'sess-p4', phase: 4,
+        surface_changes_json: JSON.stringify(phase4Changes),
+      });
+      const res = await app.request('/api/v1/dream/sessions/sess-p4');
+      const body = await res.json();
+      const phase4 = body.phases[0];
+      // phase 4 的 surface_changes 从 surface_changes_json 字段读取
+      expect(phase4.process.surface_changes).toHaveLength(2);
+      expect(phase4.process.surface_changes[0].file_name).toBe('context.md');
+      expect(phase4.process.surface_changes[0].changed).toBe(true);
+      expect(phase4.process.surface_changes[1].file_name).toBe('me.md');
+      expect(phase4.process.surface_changes[1].changed).toBe(false);
     });
 
     it('should handle null/zero quality score gracefully', async () => {

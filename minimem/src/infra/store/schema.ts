@@ -474,7 +474,8 @@ CREATE TABLE IF NOT EXISTS dream_logs (
   insights_count INTEGER NOT NULL DEFAULT 0,       -- 产出 insight 数
   conflicts_count INTEGER NOT NULL DEFAULT 0,      -- 冲突数
   quality_score REAL NOT NULL DEFAULT 0,           -- 质量评分 (0-1, <0.3 低质量)
-  quality_factors_json TEXT NOT NULL DEFAULT '{}'  -- 评分因子明细
+  quality_factors_json TEXT NOT NULL DEFAULT '{}',  -- 评分因子明细
+  surface_changes_json TEXT NOT NULL DEFAULT '[]'   -- TODO-027: Surface 变更记录 (Phase 4)
 );
 
 CREATE INDEX IF NOT EXISTS idx_dream_logs_session ON dream_logs(session_id);
