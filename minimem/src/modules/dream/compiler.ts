@@ -27,6 +27,8 @@ export interface CompileResult {
   pages_created: number;
   pages_updated: number;
   compile_queue_processed: number;
+  /** TODO-027: Surface 变更记录 */
+  surface_changes?: SurfaceChangeRecord[];
 }
 
 /** 默认编译参数（兼容无参数调用） */
@@ -45,6 +47,10 @@ const DEFAULT_COMPILE_PARAMS: CompileProfile = {
 export async function runCompile(params?: CompileProfile): Promise<CompileResult> {
   const p = params ?? DEFAULT_COMPILE_PARAMS;
   log.info({ params: p }, 'Phase 2: Compile started');
+
+  // TODO-027: 捕获 compile 开始前的 Surface version，用于后续变更检测
+  const surfaceFilesToSync = ['me.md', 'work.md', 'context.md'] as const;
+  compileStartVersions = await captureSurfaceVersions(surfaceFilesToSync);
 
   const result: CompileResult = {
     l1_to_l2: 0,
@@ -102,8 +108,66 @@ export async function runCompile(params?: CompileProfile): Promise<CompileResult
     log.warn({ err }, 'Index update failed');
   }
 
+  // TODO-025: 6. 后置步骤 — Compile 完成后调 surface_syncer 更新 Surface Files
+  // 从最新的 L1-L4 数据同步到 me.md / work.md / context.md
+  let surfaceChanges: SurfaceChangeRecord[] = [];
+  try {
+    const { syncSurfaces } = await import('../../surface/sync.js');
+    // 同步核心 Surface 文件（基于本次 compile 影响的层级）
+    const queued = await syncSurfaces([...surfaceFilesToSync]);
+    log.info({ queued, files: surfaceFilesToSync }, 'TODO-025: Surface sync triggered after compile');
+
+    // TODO-027: 记录哪些 Surface 文件被改了（通过对比 version 变化）
+    surfaceChanges = await detectSurfaceChanges(surfaceFilesToSync, compileStartVersions);
+  } catch (err) {
+    log.warn({ err }, 'TODO-025: Surface sync after compile failed (non-critical)');
+  }
+
   log.info(result, 'Phase 2: Compile complete');
-  return result;
+  return { ...result, surface_changes: surfaceChanges };
+}
+
+// ── TODO-027: Surface 变更检测 ──
+
+export interface SurfaceChangeRecord {
+  file_name: string;
+  version_before: number;
+  version_after: number;
+  changed: boolean;
+}
+
+/**
+ * 记录 compile 开始前的 Surface version，compile 后对比
+ */
+let compileStartVersions: Record<string, number> = {};
+
+async function captureSurfaceVersions(files: readonly string[]): Promise<Record<string, number>> {
+  const { getSurfaceFile } = await import('../../surface/index.js');
+  const versions: Record<string, number> = {};
+  for (const f of files) {
+    const file = getSurfaceFile(f as any);
+    versions[f] = file?.version ?? 0;
+  }
+  return versions;
+}
+
+async function detectSurfaceChanges(
+  files: readonly string[],
+  before: Record<string, number>,
+): Promise<SurfaceChangeRecord[]> {
+  const { getSurfaceFile } = await import('../../surface/index.js');
+  const changes: SurfaceChangeRecord[] = [];
+  for (const f of files) {
+    const file = getSurfaceFile(f as any);
+    const versionAfter = file?.version ?? 0;
+    changes.push({
+      file_name: f,
+      version_before: before[f] ?? 0,
+      version_after: versionAfter,
+      changed: versionAfter > (before[f] ?? 0),
+    });
+  }
+  return changes;
 }
 
 // ── compile_queue 处理 ──

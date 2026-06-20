@@ -390,6 +390,34 @@ export function createMCPServer(getClient?: () => Partial<Client>): Server {
             required: ['last_known_etag'],
           },
         },
+        // TODO-020: surface_append — Agent 自编辑 Surface（追加）
+        {
+          name: 'surface_append',
+          description: '追加内容到指定 Surface File 的某个 section。用于 agent 实时更新工作记忆。触发 etag 更新 + 磁盘同步。',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              file_name: { type: 'string', description: 'Surface 文件名 (me.md/work.md/context.md 等)' },
+              section: { type: 'string', description: '目标 section 标题（如 "## 今日工作"），不存在则创建' },
+              content: { type: 'string', description: '要追加的内容' },
+            },
+            required: ['file_name', 'content'],
+          },
+        },
+        // TODO-021: surface_replace — Agent 自编辑 Surface（替换）
+        {
+          name: 'surface_replace',
+          description: '在指定 Surface File 中精确匹配替换文本。用于 agent 修正过时信息。触发 etag 更新 + 磁盘同步。',
+          inputSchema: {
+            type: 'object' as const,
+            properties: {
+              file_name: { type: 'string', description: 'Surface 文件名' },
+              old_text: { type: 'string', description: '要替换的原文（必须精确匹配）' },
+              new_text: { type: 'string', description: '替换后的新文本' },
+            },
+            required: ['file_name', 'old_text', 'new_text'],
+          },
+        },
         // ⚙️ 系统操作
         {
           name: 'trigger_dream',
@@ -1086,6 +1114,103 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
               etag: versionInfo.etag,
               surfaces_version: versionInfo.surfaces_version,
               last_updated: versionInfo.last_updated,
+            }) }],
+          };
+        }
+
+        // TODO-020: surface_append — 追加内容到 Surface File
+        case 'surface_append': {
+          const params = args as { file_name: string; section?: string; content: string };
+
+          const validFiles = ['me.md', 'soul.md', 'work.md', 'social.md', 'life.md', 'agent.md', 'context.md', 'index.md', 'insight.md'];
+          if (!validFiles.includes(params.file_name)) {
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({ error: `Invalid file_name: ${params.file_name}`, valid_files: validFiles }) }],
+              isError: true,
+            };
+          }
+
+          const { updateSurfaceFile, getSurfaceFile, getSurfacesVersionInfo } = await import('../surface/index.js');
+          const { clearInjectionCache } = await import('../surface/injector.js');
+          const fileName = params.file_name as SurfaceFileName;
+          const current = getSurfaceFile(fileName);
+          const oldContent = current?.content ?? '';
+          const section = params.section ?? '';
+          const appendContent = params.content;
+
+          let newContent: string;
+          if (section) {
+            const sectionHeader = section.startsWith('#') ? section : `## ${section}`;
+            const sectionIdx = oldContent.indexOf(sectionHeader);
+            if (sectionIdx >= 0) {
+              const afterSection = oldContent.slice(sectionIdx + sectionHeader.length);
+              const nextSectionMatch = afterSection.match(/\n## /);
+              const insertPos = nextSectionMatch
+                ? sectionIdx + sectionHeader.length + nextSectionMatch.index!
+                : oldContent.length;
+              newContent = oldContent.slice(0, insertPos).replace(/\s*$/, '\n') + appendContent + '\n' + oldContent.slice(insertPos);
+            } else {
+              newContent = oldContent.replace(/\s*$/, '\n') + `\n${sectionHeader}\n${appendContent}\n`;
+            }
+          } else {
+            newContent = oldContent.replace(/\s*$/, '\n') + appendContent + '\n';
+          }
+
+          updateSurfaceFile(fileName, newContent, `surface_append: ${section || 'end'}`);
+          clearInjectionCache();
+          const versionInfo = getSurfacesVersionInfo();
+
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              applied: true,
+              file_name: fileName,
+              section: section || null,
+              new_etag: versionInfo.etag,
+              new_version: (current?.version ?? 0) + 1,
+            }) }],
+          };
+        }
+
+        // TODO-021: surface_replace — 精确匹配替换
+        case 'surface_replace': {
+          const params = args as { file_name: string; old_text: string; new_text: string };
+
+          const validFiles = ['me.md', 'soul.md', 'work.md', 'social.md', 'life.md', 'agent.md', 'context.md', 'index.md', 'insight.md'];
+          if (!validFiles.includes(params.file_name)) {
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({ error: `Invalid file_name: ${params.file_name}`, valid_files: validFiles }) }],
+              isError: true,
+            };
+          }
+
+          const { updateSurfaceFile, getSurfaceFile, getSurfacesVersionInfo } = await import('../surface/index.js');
+          const { clearInjectionCache } = await import('../surface/injector.js');
+          const fileName = params.file_name as SurfaceFileName;
+          const current = getSurfaceFile(fileName);
+          const oldContent = current?.content ?? '';
+
+          if (!oldContent.includes(params.old_text)) {
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify({
+                applied: false,
+                error: 'old_text not found in current content',
+                file_name: fileName,
+              }) }],
+              isError: true,
+            };
+          }
+
+          const newContent = oldContent.replace(params.old_text, params.new_text);
+          updateSurfaceFile(fileName, newContent, `surface_replace`);
+          clearInjectionCache();
+          const versionInfo = getSurfacesVersionInfo();
+
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify({
+              applied: true,
+              file_name: fileName,
+              new_etag: versionInfo.etag,
+              new_version: (current?.version ?? 0) + 1,
             }) }],
           };
         }

@@ -2,6 +2,7 @@
 // MiniMem — Surface Syncer: work.md
 // ============================================================
 // Issue-25: 从 work_tasks + dream_logs(daily summary) 同步到 work.md
+// TODO-026: 扩展数据源 — 从 L1 experiences 提取最近工作记忆
 
 import { getDb } from '../../store/database.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
@@ -21,7 +22,13 @@ const workSyncer: SurfaceSyncer = {
       `SELECT COUNT(*) as count FROM dream_logs WHERE phase = 0 AND created_at > ?`
     ).get(lastSyncAt) as { count: number };
 
-    return taskChanges.count > 0 || summaryChanges.count > 0;
+    // TODO-026: 检查 L1 experiences 是否有工作相关的新记忆
+    const expChanges = db.prepare(
+      `SELECT COUNT(*) as count FROM experiences
+       WHERE created_at > ? AND (source LIKE '%work%' OR source LIKE '%task%' OR content LIKE '%project%')`
+    ).get(lastSyncAt) as { count: number };
+
+    return taskChanges.count > 0 || summaryChanges.count > 0 || expChanges.count > 0;
   },
 
   collectData(): SyncData | null {
@@ -51,7 +58,15 @@ const workSyncer: SurfaceSyncer = {
        ORDER BY updated_at DESC LIMIT 5`
     ).all() as Array<{ title: string; updated_at: string }>;
 
-    if (activeTasks.length === 0 && recentSummaries.length === 0) {
+    // TODO-026: 从 L1 experiences 提取最近工作记忆（最近 7 天，最多 10 条）
+    const recentWorkExperiences = db.prepare(
+      `SELECT raw_content, created_at FROM experiences
+       WHERE created_at > datetime('now', '-7 days')
+         AND (source LIKE '%work%' OR source LIKE '%task%' OR raw_content LIKE '%project%')
+       ORDER BY created_at DESC LIMIT 10`
+    ).all() as Array<{ raw_content: string; created_at: string }>;
+
+    if (activeTasks.length === 0 && recentSummaries.length === 0 && recentWorkExperiences.length === 0) {
       return null;
     }
 
@@ -61,6 +76,8 @@ const workSyncer: SurfaceSyncer = {
         active_tasks: activeTasks,
         recent_summaries: recentSummaries,
         recently_completed: completedTasks,
+        // TODO-026: 新增 L1 工作记忆
+        recent_work_experiences: recentWorkExperiences,
       },
       importance: 4,
     };

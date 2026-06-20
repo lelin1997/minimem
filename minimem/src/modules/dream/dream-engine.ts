@@ -194,6 +194,24 @@ export async function triggerDream(options?: DreamOptions): Promise<DreamSession
       compileResult = await runCompile(profile.compile);
       saveCheckpoint(db, sessionId, 2, preSnapshotId, compileResult);
 
+      // TODO-027: 记录 Surface 变更到 dream_logs（compiler 后置步骤产出）
+      if (compileResult?.surface_changes && compileResult.surface_changes.length > 0) {
+        const changedFiles = compileResult.surface_changes.filter(c => c.changed);
+        if (changedFiles.length > 0) {
+          log.info({ sessionId, surfaceChanges: changedFiles }, 'TODO-027: Surface files updated during compile');
+          // 写入 phase=2 的 dream_log 记录 surface 变更
+          db.prepare(`
+            INSERT INTO dream_logs (id, session_id, phase, narrative, llm_output_summary, created_at)
+            VALUES (?, ?, 2, ?, ?, ?)
+          `).run(
+            generateId(), sessionId,
+            `Surface sync: ${changedFiles.map(c => c.file_name).join(', ')}`,
+            JSON.stringify(compileResult.surface_changes),
+            now(),
+          );
+        }
+      }
+
       // REQ-012 / TODO-017: 编译后执行信念漂移扫描
       try {
         const { scanDrift } = await import('../../core/drift-detector.js');
