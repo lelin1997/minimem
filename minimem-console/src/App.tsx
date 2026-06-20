@@ -10,6 +10,7 @@ import ReportViewer from './pages/ReportViewer';
 import OwnerProfile from './pages/OwnerProfile';
 import Persons from './pages/Persons';
 import DreamHistory from './pages/DreamHistory';
+import DreamReplay from './pages/DreamReplay';
 import Inspirations from './pages/Inspirations';
 import Knowledge from './pages/Knowledge';
 import MemoryManage from './pages/MemoryManage';
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/owner" element={<OwnerProfile />} />
         <Route path="/persons" element={<Persons />} />
         <Route path="/dreams" element={<DreamHistory />} />
+        <Route path="/dreams/replay" element={<DreamReplay />} />
         <Route path="/inspirations" element={<Inspirations />} />
         <Route path="/knowledge" element={<Knowledge />} />
         <Route path="/templates" element={<TemplateMarket />} />

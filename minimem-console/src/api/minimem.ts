@@ -304,6 +304,57 @@ export function useDream(id: string, format?: 'json' | 'md') {
   });
 }
 
+// ── TODO-032: Dream 梦境回放 ──
+
+export interface DreamSession {
+  session_id: string;
+  started_at: string;
+  finished_at: string;
+  max_phase: number;
+  total_duration_ms: number;
+  quality_score: number | null;
+  quality_grade: string;
+  is_low_quality: boolean;
+  consolidation: { l1_to_l2: number; l2_to_l3: number; l3_to_l4: number };
+  pages: { created: number; updated: number };
+  process_stats: { new_connections: number; insights_count: number };
+}
+
+export interface DreamReplayPhase {
+  phase: number;
+  narrative: string;
+  duration_ms: number;
+  created_at: string;
+  consolidation: { l1_to_l2: number; l2_to_l3: number; l3_to_l4: number };
+  pages: { created: number; updated: number; compile_queue_processed: number };
+  process: {
+    seeds: Array<{ id?: string; content?: string }>;
+    pairs: Array<{ a?: string; b?: string; reason?: string }>;
+    llm_output: string;
+    new_connections: number;
+    insights_count: number;
+    conflicts_count: number;
+    surface_changes: Array<{ file_name?: string; changed?: boolean; version_after?: number }>;
+  };
+  quality: { score: number; grade: string; factors: Record<string, number> } | null;
+  snapshots: { pre: string | null; post: string | null };
+}
+
+export function useDreamSessions(limit = 50) {
+  return useQuery({
+    queryKey: ['dream-sessions', limit],
+    queryFn: () => api.get<{ sessions: DreamSession[]; total: number }>(`/api/v1/dream/sessions?limit=${limit}`),
+  });
+}
+
+export function useDreamReplay(sessionId: string) {
+  return useQuery({
+    queryKey: ['dream-replay', sessionId],
+    queryFn: () => api.get<{ session_id: string; phases: DreamReplayPhase[] }>(`/api/v1/dream/sessions/${sessionId}`),
+    enabled: sessionId.length > 0,
+  });
+}
+
 // ── 灵感（Inspirations）──
 
 export type InspirationStatus = 'spark' | 'incubating' | 'mature' | 'acted' | 'archived';

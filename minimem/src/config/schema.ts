@@ -102,6 +102,8 @@ export const MiniMemConfigSchema = z.object({
     schedule: z.string().min(1), // cron 表达式
     auto_trigger_threshold: z.number().int().positive(),
     cold_start_threshold: z.number().int().nonnegative(),
+    // TODO-034: 增量 dream 阈值
+    increment_threshold: z.number().int().positive().optional(), // 默认 30
     // MINIMEM-003 E08: 种子选择策略
     seed_selection: z.enum(['random', 'mmr']).optional(),       // 默认 'random'
     mmr_lambda: z.number().min(0).max(1).optional(),            // 默认 0.7

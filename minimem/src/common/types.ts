@@ -522,6 +522,8 @@ export interface MiniMemConfig {
     schedule: string; // cron
     auto_trigger_threshold: number;
     cold_start_threshold: number;
+    // TODO-034: 增量 dream — 累计触发轻量 dream 的阈值（默认 30 条新 experience）
+    increment_threshold?: number;
     // MINIMEM-003 E08: 种子选择策略
     seed_selection?: 'random' | 'mmr';
     mmr_lambda?: number; // 默认 0.7

@@ -1085,6 +1085,161 @@ export function createRestApp(): Hono {
     }
   });
 
+  // ── TODO-032: Dream 梦境回放 API ──
+
+  // 列出所有 dream session（从 dream_logs 按 session 聚合）
+  app.get('/api/v1/dream/sessions', async (c) => {
+    const db = getDb();
+    const limit = Math.min(parseInt(c.req.query('limit') ?? '50', 10), 200);
+    const rows = db.prepare(`
+      SELECT
+        session_id,
+        MIN(created_at) as started_at,
+        MAX(created_at) as finished_at,
+        MAX(phase) as max_phase,
+        SUM(duration_ms) as total_duration_ms,
+        MAX(quality_score) as quality_score,
+        SUM(l1_to_l2) as l1_to_l2,
+        SUM(l2_to_l3) as l2_to_l3,
+        SUM(l3_to_l4) as l3_to_l4,
+        SUM(pages_created) as pages_created,
+        SUM(pages_updated) as pages_updated,
+        SUM(new_connections) as new_connections,
+        SUM(insights_count) as insights_count
+      FROM dream_logs
+      GROUP BY session_id
+      ORDER BY started_at DESC
+      LIMIT ?
+    `).all(limit) as Array<Record<string, number | string | null>>;
+
+    // quality_grade 运行时计算（schema 未存）
+    const grade = (score: number | null): string => {
+      if (score == null) return '-';
+      if (score >= 0.8) return 'A';
+      if (score >= 0.6) return 'B';
+      if (score >= 0.4) return 'C';
+      if (score >= 0.3) return 'D';
+      return 'F';
+    };
+
+    const sessions = rows.map(r => {
+      const score = r.quality_score as number | null;
+      return {
+        session_id: r.session_id,
+        started_at: r.started_at,
+        finished_at: r.finished_at,
+        max_phase: r.max_phase,
+        total_duration_ms: r.total_duration_ms,
+        quality_score: score,
+        quality_grade: grade(score),
+        is_low_quality: typeof score === 'number' && score < 0.3,
+        consolidation: {
+          l1_to_l2: r.l1_to_l2,
+          l2_to_l3: r.l2_to_l3,
+          l3_to_l4: r.l3_to_l4,
+        },
+        pages: {
+          created: r.pages_created,
+          updated: r.pages_updated,
+        },
+        process_stats: {
+          new_connections: r.new_connections,
+          insights_count: r.insights_count,
+        },
+      };
+    });
+
+    return c.json({ sessions, total: sessions.length });
+  });
+
+  // 单个 dream session 的完整回放数据（各 phase 过程）
+  app.get('/api/v1/dream/sessions/:sessionId', async (c) => {
+    const sessionId = c.req.param('sessionId');
+    const db = getDb();
+
+    const phases = db.prepare(`
+      SELECT
+        id, phase, narrative, duration_ms, created_at,
+        l1_to_l2, l2_to_l3, l3_to_l4,
+        pages_created, pages_updated, compile_queue_processed,
+        seeds_json, pairs_json, llm_output_summary,
+        new_connections, insights_count, conflicts_count,
+        quality_score, quality_factors_json,
+        pre_snapshot_id, post_snapshot_id
+      FROM dream_logs
+      WHERE session_id = ?
+      ORDER BY phase ASC, created_at ASC
+    `).all(sessionId) as Array<Record<string, number | string | null>>;
+
+    if (phases.length === 0) {
+      return c.json({ error: 'Dream session not found', code: 'NOT_FOUND' }, 404);
+    }
+
+    const grade = (score: number | null): string => {
+      if (score == null) return '-';
+      if (score >= 0.8) return 'A';
+      if (score >= 0.6) return 'B';
+      if (score >= 0.4) return 'C';
+      if (score >= 0.3) return 'D';
+      return 'F';
+    };
+
+    // TODO-032: 回放核心 —— 种子 → 配对 → LLM 联想 → 产出
+    // surface_changes: phase=2.5 的 dream-engine 把 surface_changes JSON 存在 llm_output_summary
+    const replay = phases.map(p => {
+      const phase = p.phase as number;
+      const llmRaw = p.llm_output_summary as string;
+      let surfaceChanges: unknown[] = [];
+      let llmOutput = llmRaw;
+      // phase 2.5 是 Surface sync 记录，llm_output_summary 存的是 surface_changes JSON
+      if (phase === 2.5 && llmRaw) {
+        try {
+          surfaceChanges = JSON.parse(llmRaw);
+          llmOutput = '';
+        } catch {
+          // 非 JSON，保持原样
+        }
+      }
+      const score = p.quality_score as number | null;
+      return {
+        phase,
+        narrative: p.narrative,
+        duration_ms: p.duration_ms,
+        created_at: p.created_at,
+        consolidation: {
+          l1_to_l2: p.l1_to_l2,
+          l2_to_l3: p.l2_to_l3,
+          l3_to_l4: p.l3_to_l4,
+        },
+        pages: {
+          created: p.pages_created,
+          updated: p.pages_updated,
+          compile_queue_processed: p.compile_queue_processed,
+        },
+        process: {
+          seeds: p.seeds_json ? JSON.parse(p.seeds_json as string) : [],
+          pairs: p.pairs_json ? JSON.parse(p.pairs_json as string) : [],
+          llm_output: llmOutput,
+          new_connections: p.new_connections,
+          insights_count: p.insights_count,
+          conflicts_count: p.conflicts_count,
+          surface_changes: surfaceChanges,
+        },
+        quality: score != null && score > 0 ? {
+          score,
+          grade: grade(score),
+          factors: p.quality_factors_json ? JSON.parse(p.quality_factors_json as string) : {},
+        } : null,
+        snapshots: {
+          pre: p.pre_snapshot_id,
+          post: p.post_snapshot_id,
+        },
+      };
+    });
+
+    return c.json({ session_id: sessionId, phases: replay });
+  });
+
   // ── R-020: Onboarding (与 MCP 对齐) ──
 
   app.post('/api/v1/onboarding', async (c) => {

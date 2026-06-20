@@ -108,6 +108,8 @@ export const DEFAULT_CONFIG: MiniMemConfig = {
     schedule: '0 3 * * *', // 每天凌晨 3 点
     auto_trigger_threshold: 50,
     cold_start_threshold: 20,
+    // TODO-034: 增量 dream — 累计 30 条新 experience 触发轻量 dream (仅 phase 1+2)
+    increment_threshold: 30,
     // REQ-002: 可配置化晋升门槛
     consolidation: {
       l2_to_l3_min_facts: 2,         // 原硬编码 3，降低门槛

@@ -10,6 +10,7 @@ import {
   Users,
   Moon,
   Lightbulb,
+  Film,
   PenLine,
   Store,
   BarChart3,
@@ -66,6 +67,7 @@ const navigationGroups: NavGroup[] = [
     label: '洞察',
     items: [
       { name: 'Dream 历史', href: '/dreams', icon: Moon },
+      { name: '梦境回放', href: '/dreams/replay', icon: Film },
       { name: '灵感面板', href: '/inspirations', icon: Lightbulb },
     ],
   },

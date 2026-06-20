@@ -356,31 +356,55 @@ export function listScheduledTasks(): Array<{ name: string; running: boolean }> 
  * 新记忆计数追踪（用于自动触发做梦）
  */
 let newMemoryCount = 0;
+// TODO-034: 标记当前计数周期内是否已触发过增量 dream
+let incrementDreamTriggered = false;
 
 export function incrementMemoryCount(): void {
   newMemoryCount++;
   // REQ-003: 使用运行时配置，而非 DEFAULT_CONFIG 硬编码
   const config = getConfig();
   const baseThreshold = config.dreaming.auto_trigger_threshold;
+  // TODO-034: 增量阈值（默认 30，低于 auto_trigger_threshold 50）
+  const incrementThreshold = config.dreaming.increment_threshold ?? 30;
 
   // T-002.5: 分级阈值 — 冷启动期降低触发门槛，加速首次 Dream
   let effectiveThreshold = baseThreshold;
+  let effectiveIncrementThreshold = incrementThreshold;
   try {
     const db = getDb();
     const totalCount = (db.prepare("SELECT COUNT(*) as count FROM experiences WHERE branch = 'main'").get() as { count: number }).count;
     if (totalCount < 100) {
       effectiveThreshold = Math.min(baseThreshold, 10);
+      effectiveIncrementThreshold = Math.min(incrementThreshold, 5);
     } else if (totalCount < 500) {
       effectiveThreshold = Math.min(baseThreshold, 25);
+      effectiveIncrementThreshold = Math.min(incrementThreshold, 15);
     }
   } catch {
     // DB 查询失败时使用原始阈值
   }
 
+  // TODO-034: 增量 dream — 达到 increment_threshold 但未到 auto_trigger，触发轻量 dream
+  // 仅跑 phase 1 (Consolidation) + phase 2 (Compile)，跳过 phase 3 (Dream)
+  if (!incrementDreamTriggered && newMemoryCount >= effectiveIncrementThreshold && newMemoryCount < effectiveThreshold) {
+    incrementDreamTriggered = true;
+    log.info({ count: newMemoryCount, incrementThreshold: effectiveIncrementThreshold }, 'TODO-034: Increment dream threshold reached (lightweight, phases 1+2)');
+    try {
+      import('../modules/dream/dream-engine.js').then(mod => {
+        mod.triggerDream({ mode: 'daily', phases: [1, 2] }).catch(err => {
+          log.error({ err }, 'TODO-034: Increment dream execution failed');
+        });
+      });
+    } catch (err) {
+      log.error({ err }, 'TODO-034: Increment dream trigger failed');
+    }
+  }
+
   if (newMemoryCount >= effectiveThreshold) {
     log.info({ count: newMemoryCount, baseThreshold, effectiveThreshold }, 'Auto-trigger dream threshold reached');
-    // 重置计数
+    // 重置计数 + 增量标记
     newMemoryCount = 0;
+    incrementDreamTriggered = false;
     // 触发做梦（异步，不阻塞主流程）
     try {
       import('../modules/dream/dream-engine.js').then(mod => {
@@ -400,6 +424,7 @@ export function getMemoryCount(): number {
 
 export function resetMemoryCount(): void {
   newMemoryCount = 0;
+  incrementDreamTriggered = false;
 }
 
 // ── 内部 ──
