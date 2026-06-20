@@ -4,7 +4,7 @@
 // 将记忆转换为轻量级 Hint：时间标签 + 一句话摘要 + recall_query
 
 import { getLogger } from '../../common/logger.js';
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { generateId, estimateTokens } from '../../common/utils.js';
 import type { MemoryLayer } from '../../common/types.js';
 import type { Hint, FusionCandidate } from './types.js';

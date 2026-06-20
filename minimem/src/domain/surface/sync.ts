@@ -4,11 +4,11 @@
 // Issue-23 修复：自动从各业务模块收集数据，生成 Surface 更新请求
 // 在 Dream Phase 4 的 processUpdateQueue() 之前执行
 
-import { getDb } from '../../store/database.js';
-import { getLLM } from '../../llm/client.js';
+import { getDb } from '../../infra/store/database.js';
+import { getLLM } from '../../infra/llm/client.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
-import { surfaceSyncPrompt } from '../../llm/prompts.js';
+import { surfaceSyncPrompt } from '../../infra/llm/prompts.js';
 import type { SurfaceFileName } from '../../common/types.js';
 
 const log = getLogger('surface-sync');

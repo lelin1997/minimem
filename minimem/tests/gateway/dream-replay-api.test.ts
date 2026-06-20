@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
-import { createRestApp } from '../../src/gateway/rest-api.js';
+import { getDb } from '../../src/infra/store/database.js';
+import { createRestApp } from '../../src/adapters/gateway/rest-api.js';
 import { getConfig } from '../../src/config/index.js';
 import { generateId } from '../../src/common/utils.js';
 import type { Hono } from 'hono';

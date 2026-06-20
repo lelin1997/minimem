@@ -6,13 +6,13 @@
 import { getLogger } from '../../common/logger.js';
 import { generateId, hashContent, estimateTokens } from '../../common/utils.js';
 import { ValidationError } from '../../common/errors.js';
-import { createExperience, experienceExistsByHash } from '../../store/experiences.js';
-import { addConditionIndex, addToFts } from '../../store/indexes.js';
-import { getVectorStore } from '../../store/vectors.js';
-import { getLLM } from '../../llm/client.js';
-import { importanceScoringPrompt, qualityGatePrompt, nerPrompt, l1ImportanceBoostPrompt } from '../../llm/prompts.js';
+import { createExperience, experienceExistsByHash } from '../../infra/store/experiences.js';
+import { addConditionIndex, addToFts } from '../../infra/store/indexes.js';
+import { getVectorStore } from '../../infra/store/vectors.js';
+import { getLLM } from '../../infra/llm/client.js';
+import { importanceScoringPrompt, qualityGatePrompt, nerPrompt, l1ImportanceBoostPrompt } from '../../infra/llm/prompts.js';
 import { initTemperature } from '../lifecycle/index.js';
-import { incrementMemoryCount } from '../../scheduler/index.js';
+import { incrementMemoryCount } from '../../infra/scheduler/index.js';
 import { enqueueEmbeddingBackfill } from './embedding-backfill.js';
 import { detectInjection } from './injection-guard.js';
 import { getConfig } from '../../config/index.js';
@@ -540,7 +540,7 @@ async function boostImportanceByL4(
   const resolvedL4 = Array.isArray(l4Candidates) ? l4Candidates : await l4Candidates;
 
   const relatedL4: Array<{ title: string; content: string }> = [];
-  const { getDb } = await import('../../store/database.js');
+  const { getDb } = await import('../../infra/store/database.js');
   const db = getDb();
 
   for (const match of resolvedL4) {

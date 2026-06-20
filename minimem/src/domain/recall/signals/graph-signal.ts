@@ -4,8 +4,8 @@
 // 图关联信号：从用户消息实体出发，在 knowledge graph 做 1-hop 关联
 
 import { getLogger } from '../../../common/logger.js';
-import { traverseGraph } from '../../../store/graph.js';
-import { lookupByPrefix } from '../../../store/indexes.js';
+import { traverseGraph } from '../../../infra/store/graph.js';
+import { lookupByPrefix } from '../../../infra/store/indexes.js';
 import type { MemoryLayer } from '../../../common/types.js';
 import type { SignalResult } from '../types.js';
 

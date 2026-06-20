@@ -2,7 +2,7 @@
 // MiniMem — 工作模块：任务管理（work_tasks CRUD）
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
 import type { WorkTask, TaskStatus, PaginatedResult, PaginationParams } from '../../common/types.js';

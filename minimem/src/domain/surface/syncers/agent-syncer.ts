@@ -3,7 +3,7 @@
 // ============================================================
 // REQ-008: 收集系统配置、MCP 工具数量、用户画像摘要、近期交互统计
 
-import { getDb } from '../../../store/database.js';
+import { getDb } from '../../../infra/store/database.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const agentSyncer: SurfaceSyncer = {

@@ -6,9 +6,9 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
+import { getDb } from '../../src/infra/store/database.js';
 import { generateId, now } from '../../src/common/utils.js';
-import { MemoryVectorStore } from '../../src/store/vectors.js';
+import { MemoryVectorStore } from '../../src/infra/store/vectors.js';
 import { initTemperature } from '../../src/domain/lifecycle/index.js';
 
 describe('T-E05.4 语义去重验证', () => {

@@ -3,11 +3,11 @@
 // ============================================================
 // 对 detectConflicts() 发现的冲突，用 LLM 判定并标记过时记忆
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../llm/client.js';
+import { getLLM } from '../../infra/llm/client.js';
 import { now } from '../../common/utils.js';
-import { conflictResolutionPrompt } from '../../llm/prompts.js';
+import { conflictResolutionPrompt } from '../../infra/llm/prompts.js';
 import type { ConflictReport } from './consolidation.js';
 
 const log = getLogger('core:correction');

@@ -4,15 +4,15 @@
 // 四路并行检索 + MemSifter 查询规划 + 条件索引 + 重排序
 
 import { getLogger } from '../../common/logger.js';
-import { getDb } from '../../store/database.js';
-import { getVectorStore } from '../../store/vectors.js';
-import { searchFts, lookupByCondition, lookupByPrefix } from '../../store/indexes.js';
-import { traverseGraph } from '../../store/graph.js';
-import { getActiveMentalModels } from '../../store/mental-models.js';
-import { searchKnowledgePages } from '../../store/knowledge-pages/page-store.js';
-import { getLLM } from '../../llm/client.js';
-import { queryPlannerPrompt, rerankPrompt } from '../../llm/prompts.js';
-import { enqueueCompile } from '../../store/knowledge-pages/compile-queue.js';
+import { getDb } from '../../infra/store/database.js';
+import { getVectorStore } from '../../infra/store/vectors.js';
+import { searchFts, lookupByCondition, lookupByPrefix } from '../../infra/store/indexes.js';
+import { traverseGraph } from '../../infra/store/graph.js';
+import { getActiveMentalModels } from '../../infra/store/mental-models.js';
+import { searchKnowledgePages } from '../../infra/store/knowledge-pages/page-store.js';
+import { getLLM } from '../../infra/llm/client.js';
+import { queryPlannerPrompt, rerankPrompt } from '../../infra/llm/prompts.js';
+import { enqueueCompile } from '../../infra/store/knowledge-pages/compile-queue.js';
 import { promoteMemory } from '../../domain/lifecycle/promotion.js';
 import type { MemoryLayer } from '../../common/types.js';
 

@@ -4,8 +4,8 @@
 // 在 Knowledge Compile 之后执行，对知识页面做质量审计
 
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../llm/client.js';
-import { getAllKnowledgePages, updateKnowledgePageContent, updateKnowledgePageMeta } from '../../store/knowledge-pages/page-store.js';
+import { getLLM } from '../../infra/llm/client.js';
+import { getAllKnowledgePages, updateKnowledgePageContent, updateKnowledgePageMeta } from '../../infra/store/knowledge-pages/page-store.js';
 import { now } from '../../common/utils.js';
 
 const log = getLogger('dream:knowledge-auditor');

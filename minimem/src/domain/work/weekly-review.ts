@@ -3,8 +3,8 @@
 // ============================================================
 
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../llm/client.js';
-import { weeklyReviewPrompt } from '../../llm/prompts.js';
+import { getLLM } from '../../infra/llm/client.js';
+import { weeklyReviewPrompt } from '../../infra/llm/prompts.js';
 import { getTaskStats } from './tasks.js';
 import { getDailySummaries } from './daily-summary.js';
 

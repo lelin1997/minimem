@@ -3,9 +3,9 @@
  * 提供统一的 DB 初始化/清理方法
  */
 import { loadConfig } from '../../src/config/index.js';
-import { initDb, closeDb, getDb } from '../../src/store/database.js';
-import { SCHEMA_SQL, SEED_SURFACE_FILES_SQL, SEED_BRANCH_SQL, SEED_META_SQL } from '../../src/store/schema.js';
-import { runIncrementalMigrations } from '../../src/store/migrate.js';
+import { initDb, closeDb, getDb } from '../../src/infra/store/database.js';
+import { SCHEMA_SQL, SEED_SURFACE_FILES_SQL, SEED_BRANCH_SQL, SEED_META_SQL } from '../../src/infra/store/schema.js';
+import { runIncrementalMigrations } from '../../src/infra/store/migrate.js';
 
 let initialized = false;
 

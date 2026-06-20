@@ -2,7 +2,7 @@
 // MiniMem — 社交模块：话题追踪
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 
 const log = getLogger('social:topic-tracker');

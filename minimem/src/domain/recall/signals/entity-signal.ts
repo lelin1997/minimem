@@ -4,8 +4,8 @@
 // 实体匹配信号：提取用户消息中的关键词/实体，在 condition_index 中匹配
 
 import { getLogger } from '../../../common/logger.js';
-import { getDb } from '../../../store/database.js';
-import { lookupByPrefix } from '../../../store/indexes.js';
+import { getDb } from '../../../infra/store/database.js';
+import { lookupByPrefix } from '../../../infra/store/indexes.js';
 import type { MemoryLayer } from '../../../common/types.js';
 import type { SignalResult } from '../types.js';
 

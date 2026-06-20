@@ -9,9 +9,9 @@ import { diffSnapshots } from '../../src/domain/version/diff.js';
 import { mergeBranch } from '../../src/domain/version/merge.js';
 import { rollbackToSnapshot } from '../../src/domain/version/rollback.js';
 import { createAuditLog, queryAuditLogs, countAuditLogs } from '../../src/domain/version/audit.js';
-import { createExperience } from '../../src/store/experiences.js';
-import { createWorldFact } from '../../src/store/world-facts.js';
-import { getDb } from '../../src/store/database.js';
+import { createExperience } from '../../src/infra/store/experiences.js';
+import { createWorldFact } from '../../src/infra/store/world-facts.js';
+import { getDb } from '../../src/infra/store/database.js';
 import { generateId, now } from '../../src/common/utils.js';
 
 beforeAll(() => {

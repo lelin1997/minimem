@@ -2,7 +2,7 @@
 // MiniMem — 链路追踪（memory_traces 写入）
 // ============================================================
 
-import { getDb } from '../store/database.js';
+import { getDb } from '../infra/store/database.js';
 import { generateId, now } from './utils.js';
 import { getLogger } from './logger.js';
 

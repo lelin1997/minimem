@@ -2,11 +2,11 @@
 // MiniMem — 社交模块：人设画像自动构建
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { now } from '../../common/utils.js';
-import { getLLM } from '../../llm/client.js';
-import { personaInferPrompt } from '../../llm/prompts.js';
+import { getLLM } from '../../infra/llm/client.js';
+import { personaInferPrompt } from '../../infra/llm/prompts.js';
 import { findPersonByName, createPerson, updatePerson } from '../../domain/owner/persons.js';
 
 const log = getLogger('social:persona-builder');

@@ -4,7 +4,7 @@
 // Issue-25: 从 work_tasks + dream_logs(daily summary) 同步到 work.md
 // TODO-026: 扩展数据源 — 从 L1 experiences 提取最近工作记忆
 
-import { getDb } from '../../../store/database.js';
+import { getDb } from '../../../infra/store/database.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const workSyncer: SurfaceSyncer = {

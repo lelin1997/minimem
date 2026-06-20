@@ -19,17 +19,17 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
+import { getDb } from '../../src/infra/store/database.js';
 
 // ── Store 层 ──
-import { createExperience, createExperiencesBatch, getExperienceById, listExperiences, countExperiences } from '../../src/store/experiences.js';
-import { createWorldFact, createWorldFactsBatch, getWorldFactById, findFactsBySubject, countWorldFacts } from '../../src/store/world-facts.js';
-import { createObservation, getObservationById, updateObservationConfidence, countObservations } from '../../src/store/observations.js';
-import { createMentalModel, getMentalModelById, getActiveMentalModels, countMentalModels } from '../../src/store/mental-models.js';
-import { addConditionIndex, lookupByCondition, lookupByPrefix, addToFts, searchFts } from '../../src/store/indexes.js';
-import { createLink, getOutboundLinks, getInboundLinks, traverseGraph } from '../../src/store/graph.js';
-import { createKnowledgePage, getKnowledgePageById, searchKnowledgePages, getAllKnowledgePages, countKnowledgePages } from '../../src/store/knowledge-pages/page-store.js';
-import { enqueueCompile, getPendingCompileItems, markCompiled, countPendingCompile } from '../../src/store/knowledge-pages/compile-queue.js';
+import { createExperience, createExperiencesBatch, getExperienceById, listExperiences, countExperiences } from '../../src/infra/store/experiences.js';
+import { createWorldFact, createWorldFactsBatch, getWorldFactById, findFactsBySubject, countWorldFacts } from '../../src/infra/store/world-facts.js';
+import { createObservation, getObservationById, updateObservationConfidence, countObservations } from '../../src/infra/store/observations.js';
+import { createMentalModel, getMentalModelById, getActiveMentalModels, countMentalModels } from '../../src/infra/store/mental-models.js';
+import { addConditionIndex, lookupByCondition, lookupByPrefix, addToFts, searchFts } from '../../src/infra/store/indexes.js';
+import { createLink, getOutboundLinks, getInboundLinks, traverseGraph } from '../../src/infra/store/graph.js';
+import { createKnowledgePage, getKnowledgePageById, searchKnowledgePages, getAllKnowledgePages, countKnowledgePages } from '../../src/infra/store/knowledge-pages/page-store.js';
+import { enqueueCompile, getPendingCompileItems, markCompiled, countPendingCompile } from '../../src/infra/store/knowledge-pages/compile-queue.js';
 
 // ── 生命周期 ──
 import { initTemperature, recordAccess, decayTemperatures, getTemperatureDistribution, pinMemory, runLightGC, runStandardGC } from '../../src/domain/lifecycle/index.js';

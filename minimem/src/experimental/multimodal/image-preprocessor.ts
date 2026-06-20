@@ -201,7 +201,7 @@ export class ImagePreprocessor implements Preprocessor {
     context: string | undefined,
     config: ImageConfig,
   ): Promise<string> {
-    const { getLLM } = await import('../../llm/client.js');
+    const { getLLM } = await import('../../infra/llm/client.js');
     const llm = getLLM();
 
     if (!llm.isAvailable) {

@@ -4,16 +4,16 @@
 // MINIMEM-002: 在 Dream Phase 3（REM）之后、Phase 4（Cleanup）之前执行
 // 流水线: spark → cross-pollinate → habit-detect → incubate → hypothesize → evaluate
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../llm/client.js';
-import { getVectorStore } from '../../store/vectors.js';
+import { getLLM } from '../../infra/llm/client.js';
+import { getVectorStore } from '../../infra/store/vectors.js';
 import { getConfig } from '../../config/index.js';
 import { generateId, now } from '../../common/utils.js';
-import { createLink } from '../../store/graph.js';
-import { enqueueCompile } from '../../store/knowledge-pages/compile-queue.js';
+import { createLink } from '../../infra/store/graph.js';
+import { enqueueCompile } from '../../infra/store/knowledge-pages/compile-queue.js';
 import { INSPIRATION_SCORE, HABIT_NEGATIVE_KEYWORDS } from '../../common/constants.js';
-import { inspirationIncubatePrompt, inspirationHypothesizePrompt, inspirationWorthinessPrompt } from '../../llm/prompts.js';
+import { inspirationIncubatePrompt, inspirationHypothesizePrompt, inspirationWorthinessPrompt } from '../../infra/llm/prompts.js';
 import type { MemoryLayer, InspirationOrigin, InspirationStatus, IncubationEntry } from '../../common/types.js';
 import type { DreamResult } from './dreamer.js';
 import type { DreamMode } from './dream-engine.js';

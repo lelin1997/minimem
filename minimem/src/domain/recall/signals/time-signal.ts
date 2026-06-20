@@ -4,7 +4,7 @@
 // 时间信号：解析时间表达式 + 近期记忆加权
 
 import { getLogger } from '../../../common/logger.js';
-import { getDb } from '../../../store/database.js';
+import { getDb } from '../../../infra/store/database.js';
 import type { MemoryLayer } from '../../../common/types.js';
 import type { SignalResult } from '../types.js';
 

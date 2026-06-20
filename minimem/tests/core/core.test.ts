@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
+import { getDb } from '../../src/infra/store/database.js';
 import { generateId, now, slugify, estimateTokens, truncate } from '../../src/common/utils.js';
 
 describe('Core Layer', () => {

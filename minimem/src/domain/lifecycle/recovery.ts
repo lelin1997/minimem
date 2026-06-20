@@ -2,7 +2,7 @@
 // MiniMem — GC 恢复（未完成 run 继续）
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { runLightGC, runStandardGC, runDeepGC } from './index.js';
 import type { GCType } from '../../common/types.js';

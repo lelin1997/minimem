@@ -3,7 +3,7 @@
 // ============================================================
 // Issue-27: 从 preferences + L4 心智模型同步到 soul.md
 
-import { getDb } from '../../../store/database.js';
+import { getDb } from '../../../infra/store/database.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const soulSyncer: SurfaceSyncer = {

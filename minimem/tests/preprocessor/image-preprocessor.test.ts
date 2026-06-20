@@ -46,7 +46,7 @@ vi.mock('../../src/config/index.js', () => ({
 }));
 
 // Mock LLM client to avoid full initialization
-vi.mock('../../src/llm/client.js', () => ({
+vi.mock('../../src/infra/llm/client.js', () => ({
   getLLM: () => ({
     isAvailable: true,
   }),

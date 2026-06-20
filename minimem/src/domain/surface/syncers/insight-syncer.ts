@@ -3,7 +3,7 @@
 // ============================================================
 // MINIMEM-002: 收集灵感池数据，生成灵感 Surface File
 
-import { getDb } from '../../../store/database.js';
+import { getDb } from '../../../infra/store/database.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const insightSyncer: SurfaceSyncer = {

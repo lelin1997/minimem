@@ -7,12 +7,12 @@
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now, estimateTokens } from '../../common/utils.js';
-import { getLLM } from '../../llm/client.js';
+import { getLLM } from '../../infra/llm/client.js';
 import { getConfig } from '../../config/index.js';
-import { surfaceBudgetCompressPrompt, surfaceSmartMergePrompt } from '../../llm/prompts.js';
+import { surfaceBudgetCompressPrompt, surfaceSmartMergePrompt } from '../../infra/llm/prompts.js';
 import type { SurfaceFileName, SurfaceFile } from '../../common/types.js';
 
 const log = getLogger('surface');

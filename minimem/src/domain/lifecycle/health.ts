@@ -2,9 +2,9 @@
 // MiniMem — 健康监控
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
-import { getVectorStore } from '../../store/vectors.js';
+import { getVectorStore } from '../../infra/store/vectors.js';
 import type { TemperatureLevel } from '../../common/types.js';
 
 const log = getLogger('lifecycle:health');

@@ -2,7 +2,7 @@
 // MiniMem — Owner Profile: KV 存储
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { now } from '../../common/utils.js';
 import type { OwnerProfileEntry, MemorySource } from '../../common/types.js';

@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
+import { getDb } from '../../src/infra/store/database.js';
 import { generateId, now } from '../../src/common/utils.js';
 import { scanDrift } from '../../src/domain/core/drift-detector.js';
 

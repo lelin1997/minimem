@@ -2,10 +2,10 @@
 // MiniMem — 生命周期管理（温度 + GC + 压缩 + 来源信誉）
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
-import { getVectorStore } from '../../store/vectors.js';
+import { getVectorStore } from '../../infra/store/vectors.js';
 import { getConfig } from '../../config/index.js';
 import { MAX_COMPRESSION_LEVEL, LAYER_PROTECTION } from '../../common/constants.js';
 import { demoteByTemperature, deleteFullyCompressed, demoteByLayer, deleteFullyCompressedByLayer } from './demotion.js';

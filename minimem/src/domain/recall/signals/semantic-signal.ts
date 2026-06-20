@@ -4,8 +4,8 @@
 // 语义相似度信号：embedding cosine similarity
 
 import { getLogger } from '../../../common/logger.js';
-import { getLLM } from '../../../llm/client.js';
-import { getVectorStore } from '../../../store/vectors.js';
+import { getLLM } from '../../../infra/llm/client.js';
+import { getVectorStore } from '../../../infra/store/vectors.js';
 import type { MemoryLayer } from '../../../common/types.js';
 import type { SignalResult } from '../types.js';
 

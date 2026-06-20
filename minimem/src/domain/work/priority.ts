@@ -2,7 +2,7 @@
 // MiniMem — 工作模块：智能优先级排序
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { now } from '../../common/utils.js';
 import type { WorkTask, TaskStatus } from '../../common/types.js';

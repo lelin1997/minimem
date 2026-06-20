@@ -7,7 +7,7 @@
 //   对每条 L3 观察，计算"支撑度"（活跃 L2 数量）
 //   高 confidence（≥0.7）且低支撑度（<2 条活跃 L2）→ drift_risk = 1
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { getConfig } from '../../config/index.js';
 

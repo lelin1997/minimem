@@ -4,7 +4,7 @@
 // Issue-28: 从近期 L1 记忆 + 活跃 L3 观察同步到 context.md
 // TODO-026: 扩展 — 加入 L2 world_facts + L4 mental_models 的活跃条目
 
-import { getDb } from '../../../store/database.js';
+import { getDb } from '../../../infra/store/database.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const contextSyncer: SurfaceSyncer = {

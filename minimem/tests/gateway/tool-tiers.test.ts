@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldExposeTool, getExposedTools, CORE_TOOLS, ADVANCED_TOOLS, EXPERIMENTAL_TOOLS, type ToolExposure } from '../../src/gateway/tool-tiers.js';
+import { shouldExposeTool, getExposedTools, CORE_TOOLS, ADVANCED_TOOLS, EXPERIMENTAL_TOOLS, type ToolExposure } from '../../src/adapters/gateway/tool-tiers.js';
 
 describe('TODO-040: MCP Tools 分级', () => {
   describe('shouldExposeTool', () => {

@@ -2,12 +2,12 @@
 // MiniMem — 压缩管线（4 级渐进压缩）
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
 import { now, sanitizeUserContent } from '../../common/utils.js';
-import { getLLM } from '../../llm/client.js';
+import { getLLM } from '../../infra/llm/client.js';
 import { COMPRESSION_LEVEL, MAX_COMPRESSION_LEVEL } from '../../common/constants.js';
-import { COMPRESS_SYSTEM_PROMPT } from '../../llm/prompts.js';
+import { COMPRESS_SYSTEM_PROMPT } from '../../infra/llm/prompts.js';
 
 const log = getLogger('lifecycle:compressor');
 

@@ -11,11 +11,11 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { createRestApp } from '../../src/gateway/rest-api.js';
-import { createMCPServer } from '../../src/gateway/mcp-server.js';
-import { DEFAULT_TRUSTED_CLIENT } from '../../src/gateway/mcp-auth.js';
+import { createRestApp } from '../../src/adapters/gateway/rest-api.js';
+import { createMCPServer } from '../../src/adapters/gateway/mcp-server.js';
+import { DEFAULT_TRUSTED_CLIENT } from '../../src/adapters/gateway/mcp-auth.js';
 import { resetInputRouter } from '../../src/domain/core/preprocessor/index.js';
-import { getDb } from '../../src/store/database.js';
+import { getDb } from '../../src/infra/store/database.js';
 import { getConfig } from '../../src/config/index.js';
 import type { Hono } from 'hono';
 

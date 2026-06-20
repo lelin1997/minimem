@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
+import { getDb } from '../../src/infra/store/database.js';
 import { generateId } from '../../src/common/utils.js';
 import { resetHintsCache } from '../../src/domain/recall/cache.js';
 

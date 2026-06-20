@@ -2,10 +2,10 @@
 // MiniMem — Dream Engine: Phase 1 — 审计 + Knowledge Page Lint
 // ============================================================
 
-import { getDb } from '../../store/database.js';
+import { getDb } from '../../infra/store/database.js';
 import { getLogger } from '../../common/logger.js';
-import { getStalePages, updateLintStatus, getAllKnowledgePages } from '../../store/knowledge-pages/page-store.js';
-import { enqueueCompile } from '../../store/knowledge-pages/compile-queue.js';
+import { getStalePages, updateLintStatus, getAllKnowledgePages } from '../../infra/store/knowledge-pages/page-store.js';
+import { enqueueCompile } from '../../infra/store/knowledge-pages/compile-queue.js';
 import type { KnowledgePage, LintStatus } from '../../common/types.js';
 
 const log = getLogger('dream:auditor');
