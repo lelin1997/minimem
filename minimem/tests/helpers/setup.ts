@@ -6,6 +6,7 @@ import { loadConfig } from '../../src/config/index.js';
 import { initDb, closeDb, getDb } from '../../src/infra/store/database.js';
 import { SCHEMA_SQL, SEED_SURFACE_FILES_SQL, SEED_BRANCH_SQL, SEED_META_SQL } from '../../src/infra/store/schema.js';
 import { runIncrementalMigrations } from '../../src/infra/store/migrate.js';
+import { registerInfraPorts } from '../../src/infra/ports-registration.js';
 
 let initialized = false;
 
@@ -31,6 +32,9 @@ export function setupTestDb(): void {
 
   // 运行增量迁移（确保新增字段和表存在）
   runIncrementalMigrations();
+
+  // P3.1: 注册 infra ports 到 domain (依赖倒置)
+  registerInfraPorts();
 
   initialized = true;
 }

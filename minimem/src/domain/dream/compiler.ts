@@ -3,18 +3,18 @@
 // ============================================================
 
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { knowledgePageCompilePrompt } from '../../infra/llm/prompts.js';
-import { getPendingCompileItems, markCompiledBatch, markCompiled } from '../../infra/store/knowledge-pages/compile-queue.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { knowledgePageCompilePrompt } from '../prompts/templates.js';
+import { getPendingCompileItems, markCompiledBatch, markCompiled } from '../ports/data-store.js';
 import {
   createKnowledgePage, updateKnowledgePageContent, updateKnowledgePageMeta,
   getAllKnowledgePages, getKnowledgePageBySlug,
-} from '../../infra/store/knowledge-pages/page-store.js';
+} from '../ports/data-store.js';
 import { extractFacts } from '../../domain/core/processing.js';
 import { distillObservations, promoteToMentalModels } from '../../domain/core/consolidation.js';
 import { updateSurfaceFile } from '../../domain/surface/index.js';
-import { getDb } from '../../infra/store/database.js';
-import { getVectorStore } from '../../infra/store/vectors.js';
+import { getDb } from '../ports/data-store.js';
+import { getVectorStore } from '../ports/vector-store.js';
 import type { SurfaceFileName, MemoryLayer, CompileQueueItem } from '../../common/types.js';
 import type { CompileProfile } from './dream-engine.js';
 

@@ -4,9 +4,9 @@
 
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { chatSummaryPrompt } from '../../infra/llm/prompts.js';
-import { enqueueCompile } from '../../infra/store/knowledge-pages/compile-queue.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { chatSummaryPrompt } from '../prompts/templates.js';
+import { enqueueCompile } from '../ports/data-store.js';
 
 const log = getLogger('social:chat-summary');
 

@@ -2,7 +2,7 @@
 // MiniMem — 做梦恢复（从 checkpoint 继续未完成的 session）
 // ============================================================
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { triggerDream } from './dream-engine.js';
 

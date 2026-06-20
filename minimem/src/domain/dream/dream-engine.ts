@@ -3,7 +3,7 @@
 // ============================================================
 
 import { getLogger } from '../../common/logger.js';
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { generateId, now } from '../../common/utils.js';
 import { DreamError } from '../../common/errors.js';
 import { createSnapshot } from '../../domain/version/snapshot.js';
@@ -19,7 +19,7 @@ import { runDream, type DreamResult } from './dreamer.js';
 import { runCleanup, type CleanupResult } from './cleaner.js';
 import { runKnowledgeAudit, type KnowledgeAuditResult } from './knowledge-auditor.js';
 import { generateDreamReport, dreamReportToMarkdown, type DreamReport } from './dream-report.js';
-import type { ModelTier } from '../../infra/llm/client.js';
+import type { ModelTier } from '../ports/llm-client.js';
 import type { SurfaceFileName } from '../../common/types.js';
 
 const log = getLogger('dream:engine');

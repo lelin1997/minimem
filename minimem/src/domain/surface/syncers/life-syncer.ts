@@ -3,7 +3,7 @@
 // ============================================================
 // Issue-28: 从生活相关的 L2 世界事实同步到 life.md
 
-import { getDb } from '../../../infra/store/database.js';
+import { getDb } from '../../ports/data-store.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const lifeSyncer: SurfaceSyncer = {

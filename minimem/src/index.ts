@@ -21,6 +21,7 @@ import { initLogger, getLogger } from './common/logger.js';
 import { loadConfig, getConfig, updateConfig } from './config/index.js';
 import { initDb, closeDb } from './infra/store/database.js';
 import { runMigrations } from './infra/store/migrate.js';
+import { registerInfraPorts } from './infra/ports-registration.js';
 import { createRestApp } from './adapters/gateway/rest-api.js';
 import { startMCPStdio, startMCPHttp } from './adapters/gateway/mcp-server.js';
 import { getVectorStore, initVectorStore } from './infra/store/vectors.js';
@@ -83,6 +84,10 @@ async function main() {
   initDb();
   runMigrations();
   log.info('Database ready');
+
+  // P3.1: 注册 infra ports 到 domain (依赖倒置)
+  registerInfraPorts();
+  log.info('Ports registered (dependency inversion)');
 
   // 4.5 从磁盘加载向量索引缓存（避免每次重启全量重建）
   try {

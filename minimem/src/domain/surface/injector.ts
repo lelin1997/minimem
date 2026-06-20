@@ -6,7 +6,7 @@
 // 总 token 预算 10000，超限时按重要性裁剪。
 // 支持 etag 版本检测，变化时重新加载。
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { estimateTokens } from '../../common/utils.js';
 import { getSurfacesVersionInfo, loadSurfacesForAgent } from './index.js';

@@ -7,7 +7,7 @@
 // 安全 → 继续 | 可疑 → LLM判断 | 攻击 → 直接拒绝
 
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../infra/llm/index.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
 
 const log = getLogger('core:injection-guard');
 

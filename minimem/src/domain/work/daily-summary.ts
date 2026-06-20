@@ -2,11 +2,11 @@
 // MiniMem — 工作模块：日终总结（LLM 生成）
 // ============================================================
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { dailySummaryPrompt } from '../../infra/llm/prompts.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { dailySummaryPrompt } from '../prompts/templates.js';
 import { getTodayTasks, getTaskStats } from './tasks.js';
 
 const log = getLogger('work:daily-summary');

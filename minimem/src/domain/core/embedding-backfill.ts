@@ -3,7 +3,7 @@
 // ============================================================
 // 通用 embedding 失败入队函数，L1-L4 统一使用
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { generateId, now } from '../../common/utils.js';
 import { getLogger } from '../../common/logger.js';
 import type { MemoryLayer } from '../../common/types.js';

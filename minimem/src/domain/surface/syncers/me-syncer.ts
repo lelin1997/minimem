@@ -4,7 +4,7 @@
 // Issue-24: 从 owner_profile 表同步 identity + personality 到 me.md
 // TODO-026: 扩展数据源 — 加入 L2 world_facts 中关于 owner 的事实
 
-import { getDb } from '../../../infra/store/database.js';
+import { getDb } from '../../ports/data-store.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const meSyncer: SurfaceSyncer = {

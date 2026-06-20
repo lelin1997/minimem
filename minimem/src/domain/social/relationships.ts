@@ -2,10 +2,10 @@
 // MiniMem — 社交模块：关系图谱管理
 // ============================================================
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
-import { createLink } from '../../infra/store/graph.js';
+import { createLink } from '../ports/graph-repository.js';
 import type { PersonProfile } from '../../common/types.js';
 
 const log = getLogger('social:relationships');

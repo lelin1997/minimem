@@ -3,12 +3,12 @@
 // ============================================================
 // 当已压缩的记忆被检索命中时，逆向恢复 compression_level
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { now, generateId } from '../../common/utils.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { getVectorStore } from '../../infra/store/vectors.js';
-import { addToFts, removeFromFts } from '../../infra/store/indexes.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { getVectorStore } from '../ports/vector-store.js';
+import { addToFts, removeFromFts } from '../ports/data-store.js';
 import { COMPRESSION_LEVEL, IRREVERSIBLE_COMPRESSION_LEVEL } from '../../common/constants.js';
 import type { MemoryLayer } from '../../common/types.js';
 
