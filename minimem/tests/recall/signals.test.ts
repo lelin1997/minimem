@@ -25,7 +25,7 @@ describe('extractEntities', () => {
     vi.doMock('../../src/store/indexes.js', () => ({
       lookupByPrefix: () => [],
     }));
-    const mod = await import('../../src/recall/signals/entity-signal.js');
+    const mod = await import('../../src/domain/recall/signals/entity-signal.js');
     extractEntities = mod.extractEntities;
   });
 
@@ -139,7 +139,7 @@ describe('computeSemanticSignal', () => {
       getVectorStore: () => ({}),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     const result = await computeSemanticSignal('test message');
     expect(result).toEqual([]);
   });
@@ -163,7 +163,7 @@ describe('computeSemanticSignal', () => {
       }),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     const result = await computeSemanticSignal('test message', 10, 0.3);
 
     expect(result).toHaveLength(2);
@@ -193,7 +193,7 @@ describe('computeSemanticSignal', () => {
       getVectorStore: () => ({}),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     const result = await computeSemanticSignal('test message');
     expect(result).toEqual([]);
   });
@@ -214,7 +214,7 @@ describe('computeSemanticSignal', () => {
       }),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     await computeSemanticSignal('test', 10, 0.3, 'work');
 
     expect(mockSearch).toHaveBeenCalledWith(
@@ -250,7 +250,7 @@ describe('computeEntitySignal', () => {
       }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('张三 最近 项目进展 如何');
 
     const zs = result.find(r => r.memory_id === 'mem_zs');
@@ -277,7 +277,7 @@ describe('computeEntitySignal', () => {
       }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('TypeScript 泛型 使用方法');
 
     const fact = result.find(r => r.memory_id === 'fact_1');
@@ -293,7 +293,7 @@ describe('computeEntitySignal', () => {
       getDb: () => ({ prepare: () => ({ all: () => [] }) }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('');
     expect(result).toEqual([]);
   });
@@ -316,7 +316,7 @@ describe('computeEntitySignal', () => {
       }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('some entity keyword here test', 5);
     expect(result.length).toBeLessThanOrEqual(5);
   });
@@ -337,7 +337,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('昨天讨论了什么');
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].source).toBe('time');
@@ -351,7 +351,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('上周的会议纪要');
     expect(result.length).toBeGreaterThan(0);
   });
@@ -364,7 +364,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('3天前我说了什么');
     expect(result.length).toBeGreaterThan(0);
   });
@@ -377,7 +377,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('最近有什么新进展');
     expect(result.length).toBeGreaterThan(0);
   });
@@ -390,7 +390,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('what did we discuss yesterday');
     expect(result.length).toBeGreaterThan(0);
   });
@@ -403,7 +403,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('2周前的决定');
     expect(result.length).toBeGreaterThan(0);
   });
@@ -416,7 +416,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('TypeScript 泛型怎么用');
     expect(result).toEqual([]);
   });
@@ -429,7 +429,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('TypeScript 泛型', ['mem_recent', 'mem_old']);
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].score).toBe(0.1);
@@ -449,7 +449,7 @@ describe('computeGraphSignal', () => {
     vi.doMock('../../src/store/indexes.js', () => ({ lookupByPrefix: () => [] }));
     vi.doMock('../../src/store/graph.js', () => ({ traverseGraph: () => [] }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal([]);
     expect(result).toEqual([]);
   });
@@ -473,7 +473,7 @@ describe('computeGraphSignal', () => {
       }),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['张三']);
 
     const linked = result.find(r => r.memory_id === 'mem_linked');
@@ -500,7 +500,7 @@ describe('computeGraphSignal', () => {
       ]),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['Alice']);
 
     expect(result.find(r => r.memory_id === 'mem_source')).toBeUndefined();
@@ -527,7 +527,7 @@ describe('computeGraphSignal', () => {
       ),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['X'], 5);
     expect(result.length).toBeLessThanOrEqual(5);
   });
@@ -550,7 +550,7 @@ describe('computeGraphSignal', () => {
       ]),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['Rust']);
 
     expect(result[0].memory_id).toBe('high');

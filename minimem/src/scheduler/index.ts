@@ -7,11 +7,11 @@ import { getLogger } from '../common/logger.js';
 import { now } from '../common/utils.js';
 import { getDb } from '../store/database.js';
 import { getConfig } from '../config/index.js';
-import { runLightGC, runStandardGC, runDeepGC, runEmergencyGC, getTemperatureDistribution } from '../lifecycle/index.js';
-import { runCompression } from '../lifecycle/compressor.js';
-import { createSnapshot } from '../version/snapshot.js';
+import { runLightGC, runStandardGC, runDeepGC, runEmergencyGC, getTemperatureDistribution } from '../domain/lifecycle/index.js';
+import { runCompression } from '../domain/lifecycle/compressor.js';
+import { createSnapshot } from '../domain/version/snapshot.js';
 import { createBackup, verifyBackup } from '../store/backup.js';
-import { runAsyncIngestWorker } from '../core/async-ingest-worker.js';
+import { runAsyncIngestWorker } from '../domain/core/async-ingest-worker.js';
 
 const log = getLogger('scheduler');
 
@@ -172,7 +172,7 @@ export function startScheduler(config?: Partial<SchedulerConfig>): void {
     const locked = await acquireTaskLock('dream:daily');
     if (!locked) { log.warn('dream:daily skipped, lock unavailable'); return; }
     try {
-      const { triggerDream } = await import('../modules/dream/dream-engine.js');
+      const { triggerDream } = await import('../domain/dream/dream-engine.js');
       const session = await triggerDream({ mode: 'daily' });
       log.info({ sessionId: session.session_id, status: session.status }, 'Daily dream completed');
     } catch (err) {
@@ -187,7 +187,7 @@ export function startScheduler(config?: Partial<SchedulerConfig>): void {
     const locked = await acquireTaskLock('dream:weekly');
     if (!locked) { log.warn('dream:weekly skipped, lock unavailable'); return; }
     try {
-      const { triggerDream } = await import('../modules/dream/dream-engine.js');
+      const { triggerDream } = await import('../domain/dream/dream-engine.js');
       const session = await triggerDream({ mode: 'weekly' });
       log.info({ sessionId: session.session_id, status: session.status }, 'Weekly deep dream completed');
     } catch (err) {
@@ -202,7 +202,7 @@ export function startScheduler(config?: Partial<SchedulerConfig>): void {
   registerTask('summary:daily', cfg.summary.daily_cron, () => {
     log.info('Running daily summary generation');
     try {
-      import('../modules/work/daily-summary.js').then(mod => {
+      import('../domain/work/daily-summary.js').then(mod => {
         mod.generateDailySummary().then(() => {
           log.info('Daily summary completed');
         }).catch(err => {
@@ -257,7 +257,7 @@ export function startScheduler(config?: Partial<SchedulerConfig>): void {
   registerTask('surface:auto-process', '0 */6 * * *', async () => {
     log.info('Running scheduled surface update queue processing');
     try {
-      const { processUpdateQueue } = await import('../surface/index.js');
+      const { processUpdateQueue } = await import('../domain/surface/index.js');
       const processed = await processUpdateQueue();
       log.info({ processed }, 'Surface auto-process completed');
     } catch (err) {
@@ -282,7 +282,7 @@ export function startScheduler(config?: Partial<SchedulerConfig>): void {
 
       log.info({ pending: pending.count }, 'Processing embedding backfills');
       // 复用 compiler 中的 processCompileQueue（它现在能处理 embedding_backfill 类型）
-      const { runCompile } = await import('../modules/dream/compiler.js');
+      const { runCompile } = await import('../domain/dream/compiler.js');
       // 只运行编译队列部分（extractFacts/distill/promote 都设为 0）
       await runCompile({
         extractFacts: 0,
@@ -390,7 +390,7 @@ export function incrementMemoryCount(): void {
     incrementDreamTriggered = true;
     log.info({ count: newMemoryCount, incrementThreshold: effectiveIncrementThreshold }, 'TODO-034: Increment dream threshold reached (lightweight, phases 1+2)');
     try {
-      import('../modules/dream/dream-engine.js').then(mod => {
+      import('../domain/dream/dream-engine.js').then(mod => {
         mod.triggerDream({ mode: 'daily', phases: [1, 2] }).catch(err => {
           log.error({ err }, 'TODO-034: Increment dream execution failed');
         });
@@ -407,7 +407,7 @@ export function incrementMemoryCount(): void {
     incrementDreamTriggered = false;
     // 触发做梦（异步，不阻塞主流程）
     try {
-      import('../modules/dream/dream-engine.js').then(mod => {
+      import('../domain/dream/dream-engine.js').then(mod => {
         mod.triggerDream({ mode: 'daily' }).catch(err => {
           log.error({ err }, 'Auto-trigger dream execution failed');
         });
@@ -508,7 +508,7 @@ const COMPENSATION_RULES: CompensationRule[] = [
     maxStaleHours: 25,
     compensate: async () => {
       log.info('🔄 Compensating: dream:daily');
-      const { triggerDream } = await import('../modules/dream/dream-engine.js');
+      const { triggerDream } = await import('../domain/dream/dream-engine.js');
       await triggerDream({ mode: 'daily' });
     },
     priority: 2,
@@ -518,7 +518,7 @@ const COMPENSATION_RULES: CompensationRule[] = [
     maxStaleHours: 8 * 24, // 超过 8 天
     compensate: async () => {
       log.info('🔄 Compensating: dream:weekly');
-      const { triggerDream } = await import('../modules/dream/dream-engine.js');
+      const { triggerDream } = await import('../domain/dream/dream-engine.js');
       await triggerDream({ mode: 'weekly' });
     },
     priority: 3,

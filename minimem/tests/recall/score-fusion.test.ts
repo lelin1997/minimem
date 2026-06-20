@@ -11,8 +11,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { fuseScores, type FusionWeights } from '../../src/recall/score-fusion.js';
-import type { SignalResult } from '../../src/recall/types.js';
+import { fuseScores, type FusionWeights } from '../../src/domain/recall/score-fusion.js';
+import type { SignalResult } from '../../src/domain/recall/types.js';
 
 const DEFAULT_WEIGHTS: FusionWeights = {
   semantic_weight: 0.50,

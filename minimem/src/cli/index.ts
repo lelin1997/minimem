@@ -14,8 +14,8 @@ import { getMigrationStatus, rollbackMigrations, runMigrations } from '../store/
 import { createBackup, listBackups, restoreBackup } from '../store/backup.js';
 import { runStartupRecovery } from '../store/recovery.js';
 import { checkAndRepairIntegrity } from '../store/integrity.js';
-import { checkHealth } from '../lifecycle/health.js';
-import { syncAllSurfacesToDisk } from '../surface/index.js';
+import { checkHealth } from '../domain/lifecycle/health.js';
+import { syncAllSurfacesToDisk } from '../domain/surface/index.js';
 import { getLogger } from '../common/logger.js';
 
 const log = getLogger('cli');

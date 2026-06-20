@@ -6,7 +6,7 @@ import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js
 import { getDb } from '../../src/store/database.js';
 import { generateId, now } from '../../src/common/utils.js';
 import { getVectorStore } from '../../src/store/vectors.js';
-import { enrichResults } from '../../src/retrieval/search.js';
+import { enrichResults } from '../../src/domain/retrieval/search.js';
 import type { MemoryLayer } from '../../src/common/types.js';
 
 describe('End-to-End Flow', () => {

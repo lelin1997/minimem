@@ -10,17 +10,17 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { resetHintsCache } from '../../src/recall/cache.js';
+import { resetHintsCache } from '../../src/domain/recall/cache.js';
 
 describe('MCP get_memory_hints Tool — Integration', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/recall/hints-engine.js');
+    vi.doUnmock('../../src/domain/recall/hints-engine.js');
     resetHintsCache();
   });
 
   it('should return hints via HintsEngine when topic provided', async () => {
     vi.resetModules();
-    vi.doMock('../../src/recall/hints-engine.js', () => ({
+    vi.doMock('../../src/domain/recall/hints-engine.js', () => ({
       HintsEngine: vi.fn().mockImplementation(() => ({
         generateHints: vi.fn().mockResolvedValue({
           hints: [
@@ -40,7 +40,7 @@ describe('MCP get_memory_hints Tool — Integration', () => {
       })),
     }));
 
-    const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+    const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
     const engine = new HintsEngine();
 
     const params = { topic: '关于TypeScript的开发偏好', max_hints: 3 };
@@ -57,7 +57,7 @@ describe('MCP get_memory_hints Tool — Integration', () => {
 
   it('should return empty message when no hints found', async () => {
     vi.resetModules();
-    vi.doMock('../../src/recall/hints-engine.js', () => ({
+    vi.doMock('../../src/domain/recall/hints-engine.js', () => ({
       HintsEngine: vi.fn().mockImplementation(() => ({
         generateHints: vi.fn().mockResolvedValue({
           hints: [],
@@ -66,7 +66,7 @@ describe('MCP get_memory_hints Tool — Integration', () => {
       })),
     }));
 
-    const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+    const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
     const engine = new HintsEngine();
 
     const response = await engine.generateHints({ message: '完全不相关的话题XYZZY' });
@@ -82,7 +82,7 @@ describe('MCP get_memory_hints Tool — Integration', () => {
 
   it('should format hints_text for agent consumption', async () => {
     vi.resetModules();
-    vi.doMock('../../src/recall/hints-engine.js', () => ({
+    vi.doMock('../../src/domain/recall/hints-engine.js', () => ({
       HintsEngine: vi.fn().mockImplementation(() => ({
         generateHints: vi.fn().mockResolvedValue({
           hints: [
@@ -112,7 +112,7 @@ describe('MCP get_memory_hints Tool — Integration', () => {
       })),
     }));
 
-    const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+    const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
     const engine = new HintsEngine();
 
     const response = await engine.generateHints({ message: '关于项目技术栈的决策' });
@@ -135,13 +135,13 @@ describe('MCP get_memory_hints Tool — Integration', () => {
       meta: { search_time_ms: 30, total_candidates: 1, token_count: 10 },
     });
 
-    vi.doMock('../../src/recall/hints-engine.js', () => ({
+    vi.doMock('../../src/domain/recall/hints-engine.js', () => ({
       HintsEngine: vi.fn().mockImplementation(() => ({
         generateHints: mockGenerateHints,
       })),
     }));
 
-    const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+    const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
     const engine = new HintsEngine();
 
     await engine.generateHints({ message: 'test topic', max_hints: 5 });
@@ -156,13 +156,13 @@ describe('MCP get_memory_hints Tool — Integration', () => {
       meta: { search_time_ms: 10, total_candidates: 0, token_count: 0 },
     });
 
-    vi.doMock('../../src/recall/hints-engine.js', () => ({
+    vi.doMock('../../src/domain/recall/hints-engine.js', () => ({
       HintsEngine: vi.fn().mockImplementation(() => ({
         generateHints: mockGenerateHints,
       })),
     }));
 
-    const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+    const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
     const engine = new HintsEngine();
 
     await engine.generateHints({ message: 'work related topic', domain: 'work' });

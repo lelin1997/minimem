@@ -12,7 +12,7 @@ import { existsSync, readFileSync, rmSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { updateSurfaceFile, getSurfaceFile, syncAllSurfacesToDisk, getSurfaceStats } from '../../src/surface/index.js';
+import { updateSurfaceFile, getSurfaceFile, syncAllSurfacesToDisk, getSurfaceStats } from '../../src/domain/surface/index.js';
 import { getConfig } from '../../src/config/index.js';
 import { estimateTokens } from '../../src/common/utils.js';
 import type { SurfaceFileName } from '../../src/common/types.js';

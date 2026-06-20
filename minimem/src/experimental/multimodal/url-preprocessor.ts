@@ -7,7 +7,7 @@
 import { getLogger } from '../../common/logger.js';
 import { getConfig } from '../../config/index.js';
 import { validateUrl } from './url-security.js';
-import type { Preprocessor, PreprocessResult, MultimodalInput } from '../../core/preprocessor/index.js';
+import type { Preprocessor, PreprocessResult, MultimodalInput } from '../../domain/core/preprocessor/index.js';
 
 const log = getLogger('core:url-preprocessor');
 

@@ -10,7 +10,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { updateSurfaceFile, getSurfaceFile, syncAllSurfacesToDisk } from '../../src/surface/index.js';
+import { updateSurfaceFile, getSurfaceFile, syncAllSurfacesToDisk } from '../../src/domain/surface/index.js';
 import { getConfig } from '../../src/config/index.js';
 import type { SurfaceFileName } from '../../src/common/types.js';
 

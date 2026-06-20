@@ -3,8 +3,8 @@
  */
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { setupTestDb, clearAllTables } from '../helpers/setup.js';
-import { forgetAbout } from '../../src/lifecycle/forget.js';
-import { runEmergencyGC, initTemperature } from '../../src/lifecycle/index.js';
+import { forgetAbout } from '../../src/domain/lifecycle/forget.js';
+import { runEmergencyGC, initTemperature } from '../../src/domain/lifecycle/index.js';
 import { createExperience } from '../../src/store/experiences.js';
 import { createWorldFact } from '../../src/store/world-facts.js';
 import { getDb } from '../../src/store/database.js';

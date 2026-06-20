@@ -3,7 +3,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { InputRouter, type Preprocessor, type MultimodalInput, type PreprocessResult } from '../../src/core/preprocessor/index.js';
+import { InputRouter, type Preprocessor, type MultimodalInput, type PreprocessResult } from '../../src/domain/core/preprocessor/index.js';
 
 // ── Mock Preprocessor ──
 

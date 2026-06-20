@@ -250,7 +250,7 @@ export async function collectMetrics(): Promise<string> {
 
     // MINIMEM-006: Recall 指标 (T-H07.1 / T-H07.2)
     try {
-      const { getRecallMetrics } = await import('../recall/metrics.js');
+      const { getRecallMetrics } = await import('../domain/recall/metrics.js');
       const recall = getRecallMetrics();
 
       // 请求级指标

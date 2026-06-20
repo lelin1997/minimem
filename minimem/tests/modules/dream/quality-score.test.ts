@@ -3,7 +3,7 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest';
-import { calculateDreamQuality, extractQualityFactors } from '../../../src/modules/dream/quality-score.js';
+import { calculateDreamQuality, extractQualityFactors } from '../../../src/domain/dream/quality-score.js';
 
 describe('Dream Quality Score (TODO-031)', () => {
   describe('calculateDreamQuality', () => {

@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
 import { getDb } from '../../src/store/database.js';
 import { generateId, now } from '../../src/common/utils.js';
-import { initTemperature, recordAccess } from '../../src/lifecycle/index.js';
+import { initTemperature, recordAccess } from '../../src/domain/lifecycle/index.js';
 
 describe('T-E11.5 Ebbinghaus 遗忘曲线验证', () => {
   beforeAll(() => setupTestDb());

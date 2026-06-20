@@ -6,8 +6,8 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
 import { getDb } from '../../src/store/database.js';
-import { getSurfaceFile, updateSurfaceFile } from '../../src/surface/index.js';
-import { clearInjectionCache, getCurrentEtag, hasSurfaceChanged, buildSurfaceInjection } from '../../src/surface/injector.js';
+import { getSurfaceFile, updateSurfaceFile } from '../../src/domain/surface/index.js';
+import { clearInjectionCache, getCurrentEtag, hasSurfaceChanged, buildSurfaceInjection } from '../../src/domain/surface/injector.js';
 import type { SurfaceFileName } from '../../src/common/types.js';
 
 describe('B4 Dream-Surface closed loop (TODO-025~028)', () => {
@@ -23,7 +23,7 @@ describe('B4 Dream-Surface closed loop (TODO-025~028)', () => {
   describe('compiler surface sync (TODO-025)', () => {
     it('should have surface_changes field in CompileResult type', async () => {
       // 导入 CompileResult 类型，确认 surface_changes 字段存在
-      const { runCompile } = await import('../../src/modules/dream/compiler.js');
+      const { runCompile } = await import('../../src/domain/dream/compiler.js');
       // runCompile 在无 LLM 时应返回 result（surface_changes 可能为空数组）
       // 这里验证类型层面正确即可，实际 dream 需要 LLM
       expect(typeof runCompile).toBe('function');
@@ -39,7 +39,7 @@ describe('B4 Dream-Surface closed loop (TODO-025~028)', () => {
       db.prepare(`INSERT INTO world_facts (id, subject, predicate, object, confidence, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
         .run('fact-1', '我', '喜欢', '咖啡', 0.9, 'test', ts, ts);
 
-      const { initSyncers, getSyncerRegistry } = await import('../../src/surface/sync.js');
+      const { initSyncers, getSyncerRegistry } = await import('../../src/domain/surface/sync.js');
       await initSyncers();
       const registry = getSyncerRegistry();
       const meSyncer = registry.get('me.md' as SurfaceFileName);
@@ -55,7 +55,7 @@ describe('B4 Dream-Surface closed loop (TODO-025~028)', () => {
       db.prepare(`INSERT INTO experiences (id, raw_content, source, created_at, importance) VALUES (?, ?, ?, ?, ?)`)
         .run('exp-1', '完成 project X 的 API 设计', 'work', new Date().toISOString(), 0.8);
 
-      const { initSyncers, getSyncerRegistry } = await import('../../src/surface/sync.js');
+      const { initSyncers, getSyncerRegistry } = await import('../../src/domain/surface/sync.js');
       await initSyncers();
       const registry = getSyncerRegistry();
       const workSyncer = registry.get('work.md' as SurfaceFileName);
@@ -73,7 +73,7 @@ describe('B4 Dream-Surface closed loop (TODO-025~028)', () => {
       db.prepare(`INSERT INTO mental_models (id, title, content, model_type, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run('mm-1', 'API 设计偏好', '用户偏好简洁的 API 设计', 'principle', 1, ts, ts);
 
-      const { initSyncers, getSyncerRegistry } = await import('../../src/surface/sync.js');
+      const { initSyncers, getSyncerRegistry } = await import('../../src/domain/surface/sync.js');
       await initSyncers();
       const registry = getSyncerRegistry();
       const ctxSyncer = registry.get('context.md' as SurfaceFileName);

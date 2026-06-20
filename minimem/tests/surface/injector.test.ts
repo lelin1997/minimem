@@ -13,7 +13,7 @@ import {
   getInjectionWithCache,
   clearInjectionCache,
   injectSurfaceForToolCall,
-} from '../../src/surface/injector.js';
+} from '../../src/domain/surface/injector.js';
 
 describe('Surface Injector (TODO-015/016/017/018)', () => {
   beforeAll(() => setupTestDb());

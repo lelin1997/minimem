@@ -13,7 +13,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
 import { getDb } from '../../src/store/database.js';
 import { generateId } from '../../src/common/utils.js';
-import { resetHintsCache } from '../../src/recall/cache.js';
+import { resetHintsCache } from '../../src/domain/recall/cache.js';
 
 describe('Recall Hints API — Integration', () => {
   beforeAll(() => {
@@ -110,7 +110,7 @@ describe('Recall Hints API — Integration', () => {
       insertConditionIndex(memId, 'L3', 'technology:TypeScript');
 
       // 调用 HintsEngine
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine({ min_relevance: 0.1 });
 
       const response = await engine.generateHints({
@@ -147,7 +147,7 @@ describe('Recall Hints API — Integration', () => {
         daysAgo: 30,
       });
 
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine({ min_relevance: 0.1 });
 
       const response = await engine.generateHints({
@@ -170,7 +170,7 @@ describe('Recall Hints API — Integration', () => {
         object: 'Kubernetes集群',
       });
 
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine({ min_relevance: 0.1 });
 
       const response = await engine.generateHints({
@@ -186,7 +186,7 @@ describe('Recall Hints API — Integration', () => {
   describe('Empty results', () => {
     it('should return empty hints for unrelated message', async () => {
       // DB 中没有相关记忆
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine();
 
       const response = await engine.generateHints({
@@ -202,7 +202,7 @@ describe('Recall Hints API — Integration', () => {
 
   describe('Skip rules', () => {
     it('should skip short messages', async () => {
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine();
 
       const response = await engine.generateHints({ message: 'hi' });
@@ -214,7 +214,7 @@ describe('Recall Hints API — Integration', () => {
 
   describe('Performance', () => {
     it('should complete within 200ms for simple queries', async () => {
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine();
 
       const start = Date.now();

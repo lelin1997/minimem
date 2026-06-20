@@ -7,7 +7,7 @@ import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { tmpdir } from 'os';
 import { FilePreprocessor } from '../../src/experimental/multimodal/file-preprocessor.js';
-import type { MultimodalInput } from '../../src/core/preprocessor/index.js';
+import type { MultimodalInput } from '../../src/domain/core/preprocessor/index.js';
 
 // ── Mock config ──
 vi.mock('../../src/config/index.js', () => ({

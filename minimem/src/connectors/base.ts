@@ -162,7 +162,7 @@ export function getConnectorsInfo(): ConnectorInfo[] {
 export function createDefaultEventHandler(): EventHandler {
   return async (event: ConnectorEvent) => {
     try {
-      const { ingestMemory } = await import('../core/perception.js');
+      const { ingestMemory } = await import('../domain/core/perception.js');
       await ingestMemory({
         content: event.content,
         source: `connector:${event.source}`,

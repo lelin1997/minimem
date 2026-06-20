@@ -14,8 +14,8 @@ import { randomUUID } from 'node:crypto';
 
 import { getLogger } from '../common/logger.js';
 import { getConfig } from '../config/index.js';
-import { ingestMemory, ingestMemoriesBatch, ingestMultimodal } from '../core/perception.js';
-import { searchMemory, enrichResults } from '../retrieval/search.js';
+import { ingestMemory, ingestMemoriesBatch, ingestMultimodal } from '../domain/core/perception.js';
+import { searchMemory, enrichResults } from '../domain/retrieval/search.js';
 import { lookupByPrefix } from '../store/indexes.js';
 import {
   getExperienceById, listExperiences, countExperiences,
@@ -29,12 +29,12 @@ import { countKnowledgePages } from '../store/knowledge-pages/page-store.js';
 import { getDb } from '../store/database.js';
 import { generateId, now } from '../common/utils.js';
 import type { SurfaceFileName, Client } from '../common/types.js';
-import { pinMemory, recordAccess, getTemperatureDistribution } from '../lifecycle/index.js';
-import { forgetAbout } from '../lifecycle/forget.js';
-import { createSnapshot, diffSnapshots } from '../version/index.js';
-import { getFullProfile, getProfileByCategory } from '../owner/profile.js';
-import { getPreference } from '../owner/preferences.js';
-import { findPersonByName, createPerson, updatePerson, deletePerson, listPersons } from '../owner/persons.js';
+import { pinMemory, recordAccess, getTemperatureDistribution } from '../domain/lifecycle/index.js';
+import { forgetAbout } from '../domain/lifecycle/forget.js';
+import { createSnapshot, diffSnapshots } from '../domain/version/index.js';
+import { getFullProfile, getProfileByCategory } from '../domain/owner/profile.js';
+import { getPreference } from '../domain/owner/preferences.js';
+import { findPersonByName, createPerson, updatePerson, deletePerson, listPersons } from '../domain/owner/persons.js';
 import {
   authenticateRequest,
   authorizeToolCall,
@@ -43,7 +43,7 @@ import {
 } from './mcp-auth.js';
 import { AuthenticationError, AuthorizationError, MiniMemError } from '../common/errors.js';
 // TODO-015/016/017: Surface 注入中间件
-import { buildSurfaceInjection, getCurrentEtag, hasSurfaceChanged } from '../surface/injector.js';
+import { buildSurfaceInjection, getCurrentEtag, hasSurfaceChanged } from '../domain/surface/injector.js';
 
 const log = getLogger('gateway:mcp');
 
@@ -1008,7 +1008,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
           let hints: Array<{ summary: string; time_label: string; recall_query: string; relevance_score: number }> | null = null;
           if (includeHints) {
             try {
-              const { HintsEngine } = await import('../recall/hints-engine.js');
+              const { HintsEngine } = await import('../domain/recall/hints-engine.js');
               const recallConfig = (getConfig() as any).recall?.hints;
               const engine = new HintsEngine(recallConfig);
               const hintResponse = await engine.generateHints({
@@ -1072,7 +1072,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
           const params = args as { agent_type: string };
           const files = loadSurfacesForAgent(params.agent_type);
           // Issue-22: 附加 etag 版本信息
-          const { getSurfacesVersionInfo } = await import('../surface/index.js');
+          const { getSurfacesVersionInfo } = await import('../domain/surface/index.js');
           const versionInfo = getSurfacesVersionInfo();
           return {
             content: [{ type: 'text' as const, text: JSON.stringify({
@@ -1097,7 +1097,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
 
           // REQ-007: immediate 模式 — 立即应用，绕过队列
           if (params.immediate) {
-            const { smartUpdateSurfaceFile } = await import('../surface/index.js');
+            const { smartUpdateSurfaceFile } = await import('../domain/surface/index.js');
             await smartUpdateSurfaceFile(params.file_name as SurfaceFileName, params.suggestion, 'immediate update');
             return {
               content: [{ type: 'text' as const, text: JSON.stringify({ applied: true, immediate: true }) }],
@@ -1118,7 +1118,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
         // Issue-22: Surface 版本检查
         case 'check_surface_version': {
           const params = args as { last_known_etag: string };
-          const { getSurfacesVersionInfo } = await import('../surface/index.js');
+          const { getSurfacesVersionInfo } = await import('../domain/surface/index.js');
           const versionInfo = getSurfacesVersionInfo();
           const changed = params.last_known_etag !== versionInfo.etag;
           return {
@@ -1143,8 +1143,8 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
             };
           }
 
-          const { updateSurfaceFile, getSurfaceFile, getSurfacesVersionInfo } = await import('../surface/index.js');
-          const { clearInjectionCache } = await import('../surface/injector.js');
+          const { updateSurfaceFile, getSurfaceFile, getSurfacesVersionInfo } = await import('../domain/surface/index.js');
+          const { clearInjectionCache } = await import('../domain/surface/injector.js');
           const fileName = params.file_name as SurfaceFileName;
           const current = getSurfaceFile(fileName);
           const oldContent = current?.content ?? '';
@@ -1196,8 +1196,8 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
             };
           }
 
-          const { updateSurfaceFile, getSurfaceFile, getSurfacesVersionInfo } = await import('../surface/index.js');
-          const { clearInjectionCache } = await import('../surface/injector.js');
+          const { updateSurfaceFile, getSurfaceFile, getSurfacesVersionInfo } = await import('../domain/surface/index.js');
+          const { clearInjectionCache } = await import('../domain/surface/injector.js');
           const fileName = params.file_name as SurfaceFileName;
           const current = getSurfaceFile(fileName);
           const oldContent = current?.content ?? '';
@@ -1321,7 +1321,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
           let propagated = 0;
           if (params.feedback === 'incorrect' || params.feedback === 'outdated') {
             try {
-              const { propagateFeedback } = await import('../core/feedback-propagator.js');
+              const { propagateFeedback } = await import('../domain/core/feedback-propagator.js');
               propagated = propagateFeedback(params.id, params.feedback as 'incorrect' | 'outdated');
             } catch (err) {
               log.warn({ err, memoryId: params.id }, 'Feedback propagation failed (non-critical)');
@@ -1407,7 +1407,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
 
         case 'trigger_dream': {
           const params = args as { mode?: string; phases?: number[]; domain?: string };
-          const { triggerDream, getDreamReportMarkdown } = await import('../modules/dream/dream-engine.js');
+          const { triggerDream, getDreamReportMarkdown } = await import('../domain/dream/dream-engine.js');
           const session = await triggerDream({
             mode: (params.mode === 'weekly' ? 'weekly' : 'daily'),
             phases: params.phases,
@@ -1475,7 +1475,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
             : '欢迎使用 MiniMem！我是你的个人记忆系统。请先告诉我你的名字，我好开始为你建档。';
 
           if (params.user_name) {
-            const { setProfileEntry } = await import('../owner/profile.js');
+            const { setProfileEntry } = await import('../domain/owner/profile.js');
             setProfileEntry('identity.name', params.user_name, { category: 'identity', confidence: 1.0, source: 'onboarding' });
           }
 
@@ -1486,7 +1486,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
           const params = args as { detail?: boolean };
           // REQ-022: 暴露完整健康检查
           try {
-            const { checkHealth } = await import('../lifecycle/health.js');
+            const { checkHealth } = await import('../domain/lifecycle/health.js');
             const report = checkHealth();
             if (params.detail) {
               return { content: [{ type: 'text' as const, text: JSON.stringify(report) }] };
@@ -1525,7 +1525,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
         // REQ-012 / TODO-017: 信念漂移健康检查
         case 'get_belief_health': {
           const params = args as { rescan?: boolean; limit?: number };
-          const { scanDrift, getBeliefHealth } = await import('../core/drift-detector.js');
+          const { scanDrift, getBeliefHealth } = await import('../domain/core/drift-detector.js');
 
           // 可选：先执行一次漂移扫描
           let scanResult = null;
@@ -1605,7 +1605,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
         // 🧠 MINIMEM-006: Hint-Driven Recall MCP Tool
         case 'get_memory_hints': {
           const params = args as { topic: string; max_hints?: number; domain?: string };
-          const { HintsEngine } = await import('../recall/hints-engine.js');
+          const { HintsEngine } = await import('../domain/recall/hints-engine.js');
           const config = getConfig();
           const recallConfig = (config as any).recall?.hints;
 
@@ -1692,7 +1692,7 @@ async function executeToolCall(name: string, args: Record<string, unknown> | und
 
         case 'trigger_inspiration': {
           const params = args as { domain?: string };
-          const { runInspirationEngine } = await import('../modules/dream/inspiration-engine.js');
+          const { runInspirationEngine } = await import('../domain/dream/inspiration-engine.js');
           const result = await runInspirationEngine({
             dreamResult: null,
             mode: 'daily',

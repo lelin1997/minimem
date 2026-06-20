@@ -9,8 +9,8 @@ import { join } from 'path';
 import { getLogger } from '../common/logger.js';
 import { MiniMemError, NotFoundError, ValidationError } from '../common/errors.js';
 import { generateId, now, sanitizeUserContent } from '../common/utils.js';
-import { ingestMemory, ingestMemoriesBatch, ingestMultimodal } from '../core/perception.js';
-import { searchMemory, enrichResults } from '../retrieval/search.js';
+import { ingestMemory, ingestMemoriesBatch, ingestMultimodal } from '../domain/core/perception.js';
+import { searchMemory, enrichResults } from '../domain/retrieval/search.js';
 import { lookupByPrefix } from '../store/indexes.js';
 import {
   getExperienceById, listExperiences, countExperiences,
@@ -22,11 +22,11 @@ import { countKnowledgePages } from '../store/knowledge-pages/page-store.js';
 import { getKnowledgePageById, listKnowledgePages, deleteOrArchiveKnowledgePage, getAllKnowledgeTags } from '../store/knowledge-pages/index.js';
 import { getDb } from '../store/database.js';
 import { getConfig } from '../config/index.js';
-import { pinMemory, getTemperatureDistribution } from '../lifecycle/index.js';
-import { forgetAbout } from '../lifecycle/forget.js';
-import { createSnapshot, diffSnapshots, listSnapshots } from '../version/index.js';
-import { getFullProfile, getProfileByCategory, setProfileEntry, setProfileEntries, deleteProfileEntry } from '../owner/profile.js';
-import { findPersonByName, createPerson, updatePerson, deletePerson, listPersons } from '../owner/persons.js';
+import { pinMemory, getTemperatureDistribution } from '../domain/lifecycle/index.js';
+import { forgetAbout } from '../domain/lifecycle/forget.js';
+import { createSnapshot, diffSnapshots, listSnapshots } from '../domain/version/index.js';
+import { getFullProfile, getProfileByCategory, setProfileEntry, setProfileEntries, deleteProfileEntry } from '../domain/owner/profile.js';
+import { findPersonByName, createPerson, updatePerson, deletePerson, listPersons } from '../domain/owner/persons.js';
 import { auditMiddleware } from './audit.js';
 import { rateLimiterMiddleware, recallRateLimiterMiddleware } from './rate-limiter.js';
 import { authMiddleware } from './auth.js';
@@ -377,7 +377,7 @@ export function createRestApp(): Hono {
     const contextSummary = body.context_summary ? sanitizeUserContent(body.context_summary).sanitized : undefined;
     const conversationHistory = body.conversation_history?.map(h => sanitizeUserContent(h).sanitized);
 
-    const { HintsEngine } = await import('../recall/hints-engine.js');
+    const { HintsEngine } = await import('../domain/recall/hints-engine.js');
     const config = getConfig();
     const recallConfig = (config as any).recall?.hints;
 
@@ -402,8 +402,8 @@ export function createRestApp(): Hono {
     const { sanitized: message } = sanitizeUserContent(body.message);
     const contextSummary = body.context_summary ? sanitizeUserContent(body.context_summary).sanitized : undefined;
 
-    const { HintsEngine } = await import('../recall/hints-engine.js');
-    const { recordAutoRequest } = await import('../recall/metrics.js');
+    const { HintsEngine } = await import('../domain/recall/hints-engine.js');
+    const { recordAutoRequest } = await import('../domain/recall/metrics.js');
     const config = getConfig();
     const recallConfig = (config as any).recall;
 
@@ -1041,7 +1041,7 @@ export function createRestApp(): Hono {
       : undefined;
 
     try {
-      const { triggerDream, getDreamReportMarkdown } = await import('../modules/dream/dream-engine.js');
+      const { triggerDream, getDreamReportMarkdown } = await import('../domain/dream/dream-engine.js');
       const session = await triggerDream({
         mode: mode as 'daily' | 'weekly',
         phases,
@@ -1552,7 +1552,7 @@ export function createRestApp(): Hono {
 
   // Issue-22: 版本 & Surface 同步端点
   app.get('/api/v1/version', async (c) => {
-    const { getSurfacesVersionInfo } = await import('../surface/index.js');
+    const { getSurfacesVersionInfo } = await import('../domain/surface/index.js');
     const versionInfo = getSurfacesVersionInfo();
     const db = getDb();
     const lastDream = db.prepare(
@@ -1571,7 +1571,7 @@ export function createRestApp(): Hono {
   // TODO-019 / T-019.3: 健康端点调用完整 checkHealth() 并返回告警
   app.get('/api/v1/health', async (c) => {
     try {
-      const { checkHealth } = await import('../lifecycle/health.js');
+      const { checkHealth } = await import('../domain/lifecycle/health.js');
       const report = checkHealth();
       return c.json(report);
     } catch {
