@@ -389,8 +389,9 @@ async function processEmbeddingBackfills(items: CompileQueueItem[]): Promise<voi
           break;
         }
         case 'L4': {
-          const row = db.prepare('SELECT title, description FROM mental_models WHERE id = ?').get(memory_id) as { title: string; description: string } | undefined;
-          text = row ? `${row.title}: ${row.description}` : null;
+          // fix: mental_models 表字段是 content 不是 description (pre-existing bug)
+          const row = db.prepare('SELECT title, content FROM mental_models WHERE id = ?').get(memory_id) as { title: string; content: string } | undefined;
+          text = row ? `${row.title}: ${row.content}` : null;
           break;
         }
       }

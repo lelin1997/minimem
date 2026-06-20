@@ -23,9 +23,10 @@ const workSyncer: SurfaceSyncer = {
     ).get(lastSyncAt) as { count: number };
 
     // TODO-026: 检查 L1 experiences 是否有工作相关的新记忆
+    // 注意 experiences 表字段是 raw_content，不是 content
     const expChanges = db.prepare(
       `SELECT COUNT(*) as count FROM experiences
-       WHERE created_at > ? AND (source LIKE '%work%' OR source LIKE '%task%' OR content LIKE '%project%')`
+       WHERE created_at > ? AND (source LIKE '%work%' OR source LIKE '%task%' OR raw_content LIKE '%project%')`
     ).get(lastSyncAt) as { count: number };
 
     return taskChanges.count > 0 || summaryChanges.count > 0 || expChanges.count > 0;

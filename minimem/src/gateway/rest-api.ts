@@ -1185,19 +1185,22 @@ export function createRestApp(): Hono {
     };
 
     // TODO-032: 回放核心 —— 种子 → 配对 → LLM 联想 → 产出
-    // surface_changes: phase=2.5 的 dream-engine 把 surface_changes JSON 存在 llm_output_summary
+    // surface_changes: phase=2 或 2.5 的 dream-engine 把 surface_changes JSON 存在 llm_output_summary
     const replay = phases.map(p => {
       const phase = p.phase as number;
       const llmRaw = p.llm_output_summary as string;
       let surfaceChanges: unknown[] = [];
       let llmOutput = llmRaw;
-      // phase 2.5 是 Surface sync 记录，llm_output_summary 存的是 surface_changes JSON
-      if (phase === 2.5 && llmRaw) {
+      // phase 2/2.5 的 llm_output_summary 存的是 surface_changes JSON 数组
+      if ((phase === 2 || phase === 2.5) && llmRaw) {
         try {
-          surfaceChanges = JSON.parse(llmRaw);
-          llmOutput = '';
+          const parsed = JSON.parse(llmRaw);
+          if (Array.isArray(parsed)) {
+            surfaceChanges = parsed;
+            llmOutput = '';
+          }
         } catch {
-          // 非 JSON，保持原样
+          // 非 JSON 数组，保持原样
         }
       }
       const score = p.quality_score as number | null;

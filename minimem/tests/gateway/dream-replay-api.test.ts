@@ -153,18 +153,18 @@ describe('TODO-032: Dream 梦境回放 API', () => {
       expect(phase3.quality.grade).toBe('A');
     });
 
-    it('should parse surface_changes from phase 2.5 llm_output_summary', async () => {
+    it('should parse surface_changes from phase 2 llm_output_summary', async () => {
       insertDreamLog({
-        session_id: 'sess-surf', phase: 2.5,
+        session_id: 'sess-surf', phase: 2,
         llm_output_summary: JSON.stringify([{ file_name: 'work.md', changed: true, version_after: 3 }]),
       });
       const res = await app.request('/api/v1/dream/sessions/sess-surf');
       const body = await res.json();
-      const phase25 = body.phases[0];
-      // phase 2.5 的 llm_output_summary 被解析为 surface_changes
-      expect(phase25.process.surface_changes).toHaveLength(1);
-      expect(phase25.process.surface_changes[0].file_name).toBe('work.md');
-      expect(phase25.process.llm_output).toBe(''); // 已转移到 surface_changes
+      const phase2 = body.phases[0];
+      // phase 2 的 llm_output_summary 被解析为 surface_changes
+      expect(phase2.process.surface_changes).toHaveLength(1);
+      expect(phase2.process.surface_changes[0].file_name).toBe('work.md');
+      expect(phase2.process.llm_output).toBe(''); // 已转移到 surface_changes
     });
 
     it('should handle null/zero quality score gracefully', async () => {
