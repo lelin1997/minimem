@@ -334,7 +334,7 @@ export interface DreamReplayPhase {
     new_connections: number;
     insights_count: number;
     conflicts_count: number;
-    surface_changes: Array<{ file_name?: string; changed?: boolean; version_after?: number }>;
+    surface_changes: Array<{ file_name?: string; changed?: boolean; version_before?: number; version_after?: number }>;
   };
   quality: { score: number; grade: string; factors: Record<string, number> } | null;
   snapshots: { pre: string | null; post: string | null };

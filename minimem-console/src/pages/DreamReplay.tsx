@@ -122,7 +122,7 @@ function PhaseCard({ phase }: { phase: DreamReplayPhase }) {
                     <span key={i} className={cn(
                       'rounded-md px-2 py-1 text-[11px]',
                       c.changed ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
-                    )}>
+                    )} title={c.changed ? `v${c.version_before ?? '?'} → v${c.version_after ?? '?'}` : `v${c.version_after ?? '?'} (未变)`}>
                       {c.file_name} {c.changed ? '✓' : '—'}
                     </span>
                   ))}
