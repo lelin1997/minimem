@@ -3,7 +3,7 @@
 // ============================================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { HNSWIndex } from '../../src/store/hnsw-index.js';
+import { HNSWIndex } from '../../src/infra/store/hnsw-index.js';
 
 // ── 工具函数 ──
 

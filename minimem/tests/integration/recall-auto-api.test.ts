@@ -58,20 +58,20 @@ describe('Recall Auto API — Integration (T-H11.2)', () => {
     });
 
     // Mock HintsEngine
-    vi.doMock('../../src/recall/hints-engine.js', () => ({
+    vi.doMock('../../src/domain/recall/hints-engine.js', () => ({
       HintsEngine: class {
         generateHints = mockGenerateHints;
       },
     }));
 
     // Mock searchMemory
-    vi.doMock('../../src/retrieval/search.js', () => ({
+    vi.doMock('../../src/domain/retrieval/search.js', () => ({
       searchMemory: mockSearchMemory,
       enrichResults: vi.fn((r: any) => r),
     }));
 
     // Mock metrics
-    vi.doMock('../../src/recall/metrics.js', () => ({
+    vi.doMock('../../src/domain/recall/metrics.js', () => ({
       recordAutoRequest: vi.fn(),
       recordHintsRequest: vi.fn(),
       recordSkip: vi.fn(),

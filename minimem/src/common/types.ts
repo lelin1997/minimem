@@ -460,6 +460,17 @@ export interface MiniMemConfig {
     port: number;
     mode: 'local' | 'self-hosted' | 'cloud';
   };
+  // TODO-040: MCP tools 分级配置
+  mcp?: {
+    tools?: {
+      // 暴露级别: 'core'(默认暴露) | 'advanced'(配置开启) | 'experimental'(默认隐藏)
+      exposure_level?: 'core' | 'advanced' | 'experimental';
+      // 额外启用的 tool 名称列表（在 exposure_level 之上追加）
+      enabled?: string[];
+      // 显式禁用的 tool 名称列表（覆盖 exposure_level）
+      disabled?: string[];
+    };
+  };
   auth: {
     enabled: boolean;
     jwt_secret_env: string;

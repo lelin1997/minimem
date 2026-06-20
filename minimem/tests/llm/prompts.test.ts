@@ -9,7 +9,7 @@ import {
   nerPrompt,
   knowledgePageCompilePrompt,
   queryPlannerPrompt,
-} from '../../src/llm/prompts.js';
+} from '../../src/infra/llm/prompts.js';
 
 describe('Prompt Templates', () => {
   describe('factExtractionPrompt', () => {

@@ -46,7 +46,7 @@ vi.mock('../../src/config/index.js', () => ({
 }));
 
 // Mock LLM client to avoid full initialization
-vi.mock('../../src/llm/client.js', () => ({
+vi.mock('../../src/infra/llm/client.js', () => ({
   getLLM: () => ({
     isAvailable: true,
   }),
@@ -56,7 +56,7 @@ vi.mock('../../src/llm/client.js', () => ({
 const originalEnv = { ...process.env };
 
 import { ImagePreprocessor, type ImageInputType } from '../../src/experimental/multimodal/image-preprocessor.js';
-import type { MultimodalInput } from '../../src/core/preprocessor/index.js';
+import type { MultimodalInput } from '../../src/domain/core/preprocessor/index.js';
 
 function makeInput(overrides: Partial<MultimodalInput> = {}): MultimodalInput {
   return {

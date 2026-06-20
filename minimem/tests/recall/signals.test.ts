@@ -19,19 +19,19 @@ describe('extractEntities', () => {
   beforeEach(async () => {
     vi.resetModules();
     // mock 依赖以避免副作用
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({ prepare: () => ({ all: () => [] }) }),
     }));
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: () => [],
     }));
-    const mod = await import('../../src/recall/signals/entity-signal.js');
+    const mod = await import('../../src/domain/recall/signals/entity-signal.js');
     extractEntities = mod.extractEntities;
   });
 
   afterEach(() => {
-    vi.doUnmock('../../src/store/database.js');
-    vi.doUnmock('../../src/store/indexes.js');
+    vi.doUnmock('../../src/infra/store/database.js');
+    vi.doUnmock('../../src/infra/store/indexes.js');
   });
 
   it('should extract space-separated Chinese entities', () => {
@@ -126,20 +126,20 @@ describe('extractEntities', () => {
 
 describe('computeSemanticSignal', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/llm/client.js');
-    vi.doUnmock('../../src/store/vectors.js');
+    vi.doUnmock('../../src/infra/llm/client.js');
+    vi.doUnmock('../../src/infra/store/vectors.js');
   });
 
   it('should return empty when embedding is not available', async () => {
     vi.resetModules();
-    vi.doMock('../../src/llm/client.js', () => ({
+    vi.doMock('../../src/infra/llm/client.js', () => ({
       getLLM: () => ({ isEmbeddingAvailable: false }),
     }));
-    vi.doMock('../../src/store/vectors.js', () => ({
+    vi.doMock('../../src/infra/store/vectors.js', () => ({
       getVectorStore: () => ({}),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     const result = await computeSemanticSignal('test message');
     expect(result).toEqual([]);
   });
@@ -151,19 +151,19 @@ describe('computeSemanticSignal', () => {
       { memoryId: 'mem2', similarity: 0.72, memoryType: 'L2' },
     ]);
 
-    vi.doMock('../../src/llm/client.js', () => ({
+    vi.doMock('../../src/infra/llm/client.js', () => ({
       getLLM: () => ({
         isEmbeddingAvailable: true,
         embed: vi.fn().mockResolvedValue({ embedding: [0.1, 0.2, 0.3] }),
       }),
     }));
-    vi.doMock('../../src/store/vectors.js', () => ({
+    vi.doMock('../../src/infra/store/vectors.js', () => ({
       getVectorStore: () => ({
         search: mockSearch,
       }),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     const result = await computeSemanticSignal('test message', 10, 0.3);
 
     expect(result).toHaveLength(2);
@@ -183,17 +183,17 @@ describe('computeSemanticSignal', () => {
 
   it('should return empty on embed error (graceful degradation)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/llm/client.js', () => ({
+    vi.doMock('../../src/infra/llm/client.js', () => ({
       getLLM: () => ({
         isEmbeddingAvailable: true,
         embed: vi.fn().mockRejectedValue(new Error('API timeout')),
       }),
     }));
-    vi.doMock('../../src/store/vectors.js', () => ({
+    vi.doMock('../../src/infra/store/vectors.js', () => ({
       getVectorStore: () => ({}),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     const result = await computeSemanticSignal('test message');
     expect(result).toEqual([]);
   });
@@ -202,19 +202,19 @@ describe('computeSemanticSignal', () => {
     vi.resetModules();
     const mockSearch = vi.fn().mockResolvedValue([]);
 
-    vi.doMock('../../src/llm/client.js', () => ({
+    vi.doMock('../../src/infra/llm/client.js', () => ({
       getLLM: () => ({
         isEmbeddingAvailable: true,
         embed: vi.fn().mockResolvedValue({ embedding: [0.1] }),
       }),
     }));
-    vi.doMock('../../src/store/vectors.js', () => ({
+    vi.doMock('../../src/infra/store/vectors.js', () => ({
       getVectorStore: () => ({
         search: mockSearch,
       }),
     }));
 
-    const { computeSemanticSignal } = await import('../../src/recall/signals/semantic-signal.js');
+    const { computeSemanticSignal } = await import('../../src/domain/recall/signals/semantic-signal.js');
     await computeSemanticSignal('test', 10, 0.3, 'work');
 
     expect(mockSearch).toHaveBeenCalledWith(
@@ -230,13 +230,13 @@ describe('computeSemanticSignal', () => {
 
 describe('computeEntitySignal', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/store/indexes.js');
-    vi.doUnmock('../../src/store/database.js');
+    vi.doUnmock('../../src/infra/store/indexes.js');
+    vi.doUnmock('../../src/infra/store/database.js');
   });
 
   it('should find entities via condition_index (lookupByPrefix)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix.includes('张三')) {
           return [{ condition_key: prefix, memory_type: 'L3', memory_id: 'mem_zs' }];
@@ -244,13 +244,13 @@ describe('computeEntitySignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [] }),
       }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('张三 最近 项目进展 如何');
 
     const zs = result.find(r => r.memory_id === 'mem_zs');
@@ -261,10 +261,10 @@ describe('computeEntitySignal', () => {
 
   it('should find entities in world_facts via LIKE', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: () => [],
     }));
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: (sql: string) => ({
           all: (..._args: any[]) => {
@@ -277,7 +277,7 @@ describe('computeEntitySignal', () => {
       }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('TypeScript 泛型 使用方法');
 
     const fact = result.find(r => r.memory_id === 'fact_1');
@@ -288,22 +288,22 @@ describe('computeEntitySignal', () => {
 
   it('should return empty for empty message', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({ lookupByPrefix: () => [] }));
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({ lookupByPrefix: () => [] }));
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({ prepare: () => ({ all: () => [] }) }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('');
     expect(result).toEqual([]);
   });
 
   it('should sort by score descending and limit to topK', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: () => [],
     }));
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: (sql: string) => ({
           all: () => {
@@ -316,7 +316,7 @@ describe('computeEntitySignal', () => {
       }),
     }));
 
-    const { computeEntitySignal } = await import('../../src/recall/signals/entity-signal.js');
+    const { computeEntitySignal } = await import('../../src/domain/recall/signals/entity-signal.js');
     const result = computeEntitySignal('some entity keyword here test', 5);
     expect(result.length).toBeLessThanOrEqual(5);
   });
@@ -326,18 +326,18 @@ describe('computeEntitySignal', () => {
 
 describe('computeTimeSignal — Time Expression Parsing', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/store/database.js');
+    vi.doUnmock('../../src/infra/store/database.js');
   });
 
   it('should parse "昨天" and query DB', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_yesterday', confidence: 0.9 }] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('昨天讨论了什么');
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].source).toBe('time');
@@ -345,91 +345,91 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should parse "上周" and query DB', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_lastweek', confidence: 0.8 }] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('上周的会议纪要');
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('should parse "N天前"', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_3d', confidence: 0.7 }] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('3天前我说了什么');
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('should parse "最近"', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_recent', confidence: 0.6 }] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('最近有什么新进展');
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('should parse "yesterday" (English)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_en_yesterday', confidence: 0.8 }] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('what did we discuss yesterday');
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('should parse "N weeks ago"', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_2w', confidence: 0.7 }] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('2周前的决定');
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('should return empty for message without time expression (no candidates)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('TypeScript 泛型怎么用');
     expect(result).toEqual([]);
   });
 
   it('should boost recent memories when candidateIds provided', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/database.js', () => ({
+    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_recent' }] }),
       }),
     }));
 
-    const { computeTimeSignal } = await import('../../src/recall/signals/time-signal.js');
+    const { computeTimeSignal } = await import('../../src/domain/recall/signals/time-signal.js');
     const result = computeTimeSignal('TypeScript 泛型', ['mem_recent', 'mem_old']);
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].score).toBe(0.1);
@@ -440,23 +440,23 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
 describe('computeGraphSignal', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/store/indexes.js');
-    vi.doUnmock('../../src/store/graph.js');
+    vi.doUnmock('../../src/infra/store/indexes.js');
+    vi.doUnmock('../../src/infra/store/graph.js');
   });
 
   it('should return empty for empty entities', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({ lookupByPrefix: () => [] }));
-    vi.doMock('../../src/store/graph.js', () => ({ traverseGraph: () => [] }));
+    vi.doMock('../../src/infra/store/indexes.js', () => ({ lookupByPrefix: () => [] }));
+    vi.doMock('../../src/infra/store/graph.js', () => ({ traverseGraph: () => [] }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal([]);
     expect(result).toEqual([]);
   });
 
   it('should find 1-hop linked memories', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'person:张三') {
           return [{ condition_key: 'person:张三', memory_type: 'L3', memory_id: 'mem_zs' }];
@@ -464,7 +464,7 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/store/graph.js', () => ({
+    vi.doMock('../../src/infra/store/graph.js', () => ({
       traverseGraph: vi.fn((startId: string) => {
         if (startId === 'mem_zs') {
           return [{ target_id: 'mem_linked', weight: 0.8, target_type: 'L2' }];
@@ -473,7 +473,7 @@ describe('computeGraphSignal', () => {
       }),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['张三']);
 
     const linked = result.find(r => r.memory_id === 'mem_linked');
@@ -485,7 +485,7 @@ describe('computeGraphSignal', () => {
 
   it('should exclude source nodes from results', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'person:Alice') {
           return [{ condition_key: 'person:Alice', memory_type: 'L3', memory_id: 'mem_source' }];
@@ -493,14 +493,14 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/store/graph.js', () => ({
+    vi.doMock('../../src/infra/store/graph.js', () => ({
       traverseGraph: vi.fn(() => [
         { target_id: 'mem_source', weight: 1.0, target_type: 'L3' },
         { target_id: 'mem_linked', weight: 0.6, target_type: 'L2' },
       ]),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['Alice']);
 
     expect(result.find(r => r.memory_id === 'mem_source')).toBeUndefined();
@@ -509,7 +509,7 @@ describe('computeGraphSignal', () => {
 
   it('should respect topK limit', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'topic:X') {
           return [{ condition_key: 'topic:X', memory_type: 'L3', memory_id: 'src' }];
@@ -517,7 +517,7 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/store/graph.js', () => ({
+    vi.doMock('../../src/infra/store/graph.js', () => ({
       traverseGraph: vi.fn(() =>
         Array.from({ length: 20 }, (_, i) => ({
           target_id: `mem_${i}`,
@@ -527,14 +527,14 @@ describe('computeGraphSignal', () => {
       ),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['X'], 5);
     expect(result.length).toBeLessThanOrEqual(5);
   });
 
   it('should sort results by score descending', async () => {
     vi.resetModules();
-    vi.doMock('../../src/store/indexes.js', () => ({
+    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'topic:Rust') {
           return [{ condition_key: 'topic:Rust', memory_type: 'L3', memory_id: 'src' }];
@@ -542,7 +542,7 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/store/graph.js', () => ({
+    vi.doMock('../../src/infra/store/graph.js', () => ({
       traverseGraph: vi.fn(() => [
         { target_id: 'low', weight: 0.3, target_type: 'L1' },
         { target_id: 'high', weight: 0.9, target_type: 'L3' },
@@ -550,7 +550,7 @@ describe('computeGraphSignal', () => {
       ]),
     }));
 
-    const { computeGraphSignal } = await import('../../src/recall/signals/graph-signal.js');
+    const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal(['Rust']);
 
     expect(result[0].memory_id).toBe('high');

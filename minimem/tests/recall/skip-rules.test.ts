@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { shouldSkip } from '../../src/recall/skip-rules.js';
+import { shouldSkip } from '../../src/domain/recall/skip-rules.js';
 
 describe('shouldSkip — Skip Rules', () => {
   // ── 规则 1: 消息太短 ──

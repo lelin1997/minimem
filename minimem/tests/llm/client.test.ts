@@ -52,7 +52,7 @@ vi.mock('../../src/common/logger.js', () => ({
 // Set API key before importing
 process.env.TEST_API_KEY = 'test-key-123';
 
-import { LLMClient } from '../../src/llm/client.js';
+import { LLMClient } from '../../src/infra/llm/client.js';
 import { LLMError } from '../../src/common/errors.js';
 
 // ── 测试工具 ──

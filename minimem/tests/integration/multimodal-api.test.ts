@@ -11,11 +11,11 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { createRestApp } from '../../src/gateway/rest-api.js';
-import { createMCPServer } from '../../src/gateway/mcp-server.js';
-import { DEFAULT_TRUSTED_CLIENT } from '../../src/gateway/mcp-auth.js';
-import { resetInputRouter } from '../../src/core/preprocessor/index.js';
-import { getDb } from '../../src/store/database.js';
+import { createRestApp } from '../../src/adapters/gateway/rest-api.js';
+import { createMCPServer } from '../../src/adapters/gateway/mcp-server.js';
+import { DEFAULT_TRUSTED_CLIENT } from '../../src/adapters/gateway/mcp-auth.js';
+import { resetInputRouter } from '../../src/domain/core/preprocessor/index.js';
+import { getDb } from '../../src/infra/store/database.js';
 import { getConfig } from '../../src/config/index.js';
 import type { Hono } from 'hono';
 
@@ -54,7 +54,7 @@ vi.mock('../../src/experimental/multimodal/url-security.js', () => ({
 
 // Mock preprocessor/index.js 的 getInputRouter — 手动注册 UrlPreprocessor + FilePreprocessor + ImagePreprocessor
 // 因为原始代码中的 require() 在 vitest ESM 环境下无法正确加载
-vi.mock('../../src/core/preprocessor/index.js', async (importOriginal) => {
+vi.mock('../../src/domain/core/preprocessor/index.js', async (importOriginal) => {
   const original = await importOriginal() as any;
   const { UrlPreprocessor } = await import('../../src/experimental/multimodal/url-preprocessor.js');
   const { FilePreprocessor } = await import('../../src/experimental/multimodal/file-preprocessor.js');

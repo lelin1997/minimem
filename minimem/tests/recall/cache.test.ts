@@ -11,8 +11,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { HintsCache, hashMessage, resetHintsCache } from '../../src/recall/cache.js';
-import type { HintResponse } from '../../src/recall/types.js';
+import { HintsCache, hashMessage, resetHintsCache } from '../../src/domain/recall/cache.js';
+import type { HintResponse } from '../../src/domain/recall/types.js';
 
 describe('HintsCache — Three-level Cache System', () => {
   let cache: HintsCache;

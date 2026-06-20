@@ -4,9 +4,9 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
-import { getSurfaceFile, updateSurfaceFile, getSurfacesVersionInfo } from '../../src/surface/index.js';
-import { clearInjectionCache, getCurrentEtag, hasSurfaceChanged, getInjectionWithCache } from '../../src/surface/injector.js';
+import { getDb } from '../../src/infra/store/database.js';
+import { getSurfaceFile, updateSurfaceFile, getSurfacesVersionInfo } from '../../src/domain/surface/index.js';
+import { clearInjectionCache, getCurrentEtag, hasSurfaceChanged, getInjectionWithCache } from '../../src/domain/surface/injector.js';
 import type { SurfaceFileName } from '../../src/common/types.js';
 
 // 直接调用底层 updateSurfaceFile 来模拟 surface_append/replace 的核心逻辑

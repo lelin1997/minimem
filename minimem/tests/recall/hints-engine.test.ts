@@ -12,15 +12,15 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resetHintsCache } from '../../src/recall/cache.js';
+import { resetHintsCache } from '../../src/domain/recall/cache.js';
 
 // 统一的 afterEach 清理
 afterEach(() => {
-  vi.doUnmock('../../src/recall/signals/semantic-signal.js');
-  vi.doUnmock('../../src/recall/signals/entity-signal.js');
-  vi.doUnmock('../../src/recall/signals/time-signal.js');
-  vi.doUnmock('../../src/recall/signals/graph-signal.js');
-  vi.doUnmock('../../src/recall/hint-formatter.js');
+  vi.doUnmock('../../src/domain/recall/signals/semantic-signal.js');
+  vi.doUnmock('../../src/domain/recall/signals/entity-signal.js');
+  vi.doUnmock('../../src/domain/recall/signals/time-signal.js');
+  vi.doUnmock('../../src/domain/recall/signals/graph-signal.js');
+  vi.doUnmock('../../src/domain/recall/hint-formatter.js');
 });
 
 /**
@@ -46,24 +46,24 @@ async function setupEngine(options?: {
   vi.resetModules();
   resetHintsCache();
 
-  vi.doMock('../../src/recall/signals/semantic-signal.js', () => ({
+  vi.doMock('../../src/domain/recall/signals/semantic-signal.js', () => ({
     computeSemanticSignal: vi.fn().mockResolvedValue(semanticResults),
   }));
 
-  vi.doMock('../../src/recall/signals/entity-signal.js', () => ({
+  vi.doMock('../../src/domain/recall/signals/entity-signal.js', () => ({
     computeEntitySignal: vi.fn().mockReturnValue(entityResults),
     extractEntities: vi.fn().mockReturnValue(entities),
   }));
 
-  vi.doMock('../../src/recall/signals/time-signal.js', () => ({
+  vi.doMock('../../src/domain/recall/signals/time-signal.js', () => ({
     computeTimeSignal: vi.fn().mockReturnValue(timeResults),
   }));
 
-  vi.doMock('../../src/recall/signals/graph-signal.js', () => ({
+  vi.doMock('../../src/domain/recall/signals/graph-signal.js', () => ({
     computeGraphSignal: vi.fn().mockReturnValue(graphResults),
   }));
 
-  vi.doMock('../../src/recall/hint-formatter.js', () => ({
+  vi.doMock('../../src/domain/recall/hint-formatter.js', () => ({
     formatHints: vi.fn().mockImplementation((candidates: any[], maxHints: number) => {
       return candidates.slice(0, maxHints).map((c: any, i: number) => ({
         id: `hint_${i}`,
@@ -78,7 +78,7 @@ async function setupEngine(options?: {
     }),
   }));
 
-  const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+  const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
   return new HintsEngine(config);
 }
 
@@ -207,24 +207,24 @@ describe('HintsEngine', () => {
       resetHintsCache();
 
       const mockSemantic = vi.fn().mockResolvedValue([]);
-      vi.doMock('../../src/recall/signals/semantic-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/semantic-signal.js', () => ({
         computeSemanticSignal: mockSemantic,
       }));
-      vi.doMock('../../src/recall/signals/entity-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/entity-signal.js', () => ({
         computeEntitySignal: vi.fn().mockReturnValue([]),
         extractEntities: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/signals/time-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/time-signal.js', () => ({
         computeTimeSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/signals/graph-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/graph-signal.js', () => ({
         computeGraphSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/hint-formatter.js', () => ({
+      vi.doMock('../../src/domain/recall/hint-formatter.js', () => ({
         formatHints: vi.fn().mockReturnValue([]),
       }));
 
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine();
 
       await engine.generateHints({
@@ -272,22 +272,22 @@ describe('HintsEngine', () => {
       vi.resetModules();
       resetHintsCache();
 
-      vi.doMock('../../src/recall/signals/semantic-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/semantic-signal.js', () => ({
         computeSemanticSignal: vi.fn().mockRejectedValue(new Error('Embed failed')),
       }));
-      vi.doMock('../../src/recall/signals/entity-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/entity-signal.js', () => ({
         computeEntitySignal: vi.fn().mockReturnValue([
           { memory_id: 'mem1', score: 0.7, source: 'entity', layer: 'L3' },
         ]),
         extractEntities: vi.fn().mockReturnValue(['TypeScript']),
       }));
-      vi.doMock('../../src/recall/signals/time-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/time-signal.js', () => ({
         computeTimeSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/signals/graph-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/graph-signal.js', () => ({
         computeGraphSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/hint-formatter.js', () => ({
+      vi.doMock('../../src/domain/recall/hint-formatter.js', () => ({
         formatHints: vi.fn().mockImplementation((candidates: any[], maxHints: number) => {
           return candidates.slice(0, maxHints).map((c: any, i: number) => ({
             id: `hint_${i}`,
@@ -302,7 +302,7 @@ describe('HintsEngine', () => {
         }),
       }));
 
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine();
 
       const response = await engine.generateHints({
@@ -321,24 +321,24 @@ describe('HintsEngine', () => {
       resetHintsCache();
 
       const mockSemantic = vi.fn().mockResolvedValue([]);
-      vi.doMock('../../src/recall/signals/semantic-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/semantic-signal.js', () => ({
         computeSemanticSignal: mockSemantic,
       }));
-      vi.doMock('../../src/recall/signals/entity-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/entity-signal.js', () => ({
         computeEntitySignal: vi.fn().mockReturnValue([]),
         extractEntities: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/signals/time-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/time-signal.js', () => ({
         computeTimeSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/signals/graph-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/graph-signal.js', () => ({
         computeGraphSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/hint-formatter.js', () => ({
+      vi.doMock('../../src/domain/recall/hint-formatter.js', () => ({
         formatHints: vi.fn().mockReturnValue([]),
       }));
 
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine();
 
       await engine.generateHints({
@@ -356,24 +356,24 @@ describe('HintsEngine', () => {
       resetHintsCache();
 
       const mockSemantic = vi.fn().mockResolvedValue([]);
-      vi.doMock('../../src/recall/signals/semantic-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/semantic-signal.js', () => ({
         computeSemanticSignal: mockSemantic,
       }));
-      vi.doMock('../../src/recall/signals/entity-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/entity-signal.js', () => ({
         computeEntitySignal: vi.fn().mockReturnValue([]),
         extractEntities: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/signals/time-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/time-signal.js', () => ({
         computeTimeSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/signals/graph-signal.js', () => ({
+      vi.doMock('../../src/domain/recall/signals/graph-signal.js', () => ({
         computeGraphSignal: vi.fn().mockReturnValue([]),
       }));
-      vi.doMock('../../src/recall/hint-formatter.js', () => ({
+      vi.doMock('../../src/domain/recall/hint-formatter.js', () => ({
         formatHints: vi.fn().mockReturnValue([]),
       }));
 
-      const { HintsEngine } = await import('../../src/recall/hints-engine.js');
+      const { HintsEngine } = await import('../../src/domain/recall/hints-engine.js');
       const engine = new HintsEngine();
 
       await engine.generateHints({

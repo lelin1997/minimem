@@ -19,44 +19,44 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, clearAllTables } from '../helpers/setup.js';
-import { getDb } from '../../src/store/database.js';
+import { getDb } from '../../src/infra/store/database.js';
 
 // ── Store 层 ──
-import { createExperience, createExperiencesBatch, getExperienceById, listExperiences, countExperiences } from '../../src/store/experiences.js';
-import { createWorldFact, createWorldFactsBatch, getWorldFactById, findFactsBySubject, countWorldFacts } from '../../src/store/world-facts.js';
-import { createObservation, getObservationById, updateObservationConfidence, countObservations } from '../../src/store/observations.js';
-import { createMentalModel, getMentalModelById, getActiveMentalModels, countMentalModels } from '../../src/store/mental-models.js';
-import { addConditionIndex, lookupByCondition, lookupByPrefix, addToFts, searchFts } from '../../src/store/indexes.js';
-import { createLink, getOutboundLinks, getInboundLinks, traverseGraph } from '../../src/store/graph.js';
-import { createKnowledgePage, getKnowledgePageById, searchKnowledgePages, getAllKnowledgePages, countKnowledgePages } from '../../src/store/knowledge-pages/page-store.js';
-import { enqueueCompile, getPendingCompileItems, markCompiled, countPendingCompile } from '../../src/store/knowledge-pages/compile-queue.js';
+import { createExperience, createExperiencesBatch, getExperienceById, listExperiences, countExperiences } from '../../src/infra/store/experiences.js';
+import { createWorldFact, createWorldFactsBatch, getWorldFactById, findFactsBySubject, countWorldFacts } from '../../src/infra/store/world-facts.js';
+import { createObservation, getObservationById, updateObservationConfidence, countObservations } from '../../src/infra/store/observations.js';
+import { createMentalModel, getMentalModelById, getActiveMentalModels, countMentalModels } from '../../src/infra/store/mental-models.js';
+import { addConditionIndex, lookupByCondition, lookupByPrefix, addToFts, searchFts } from '../../src/infra/store/indexes.js';
+import { createLink, getOutboundLinks, getInboundLinks, traverseGraph } from '../../src/infra/store/graph.js';
+import { createKnowledgePage, getKnowledgePageById, searchKnowledgePages, getAllKnowledgePages, countKnowledgePages } from '../../src/infra/store/knowledge-pages/page-store.js';
+import { enqueueCompile, getPendingCompileItems, markCompiled, countPendingCompile } from '../../src/infra/store/knowledge-pages/compile-queue.js';
 
 // ── 生命周期 ──
-import { initTemperature, recordAccess, decayTemperatures, getTemperatureDistribution, pinMemory, runLightGC, runStandardGC } from '../../src/lifecycle/index.js';
+import { initTemperature, recordAccess, decayTemperatures, getTemperatureDistribution, pinMemory, runLightGC, runStandardGC } from '../../src/domain/lifecycle/index.js';
 
 // ── 版本控制 ──
-import { createSnapshot, listSnapshots, getLatestSnapshot } from '../../src/version/snapshot.js';
-import { createBranch, getBranch, listBranches, deactivateBranch } from '../../src/version/branch.js';
+import { createSnapshot, listSnapshots, getLatestSnapshot } from '../../src/domain/version/snapshot.js';
+import { createBranch, getBranch, listBranches, deactivateBranch } from '../../src/domain/version/branch.js';
 
 // ── Surface Files ──
-import { getSurfaceFile, updateSurfaceFile, getSurfaceStats } from '../../src/surface/index.js';
+import { getSurfaceFile, updateSurfaceFile, getSurfaceStats } from '../../src/domain/surface/index.js';
 
 // ── 工作模块 ──
-import { createTask, getTaskById, updateTask, deleteTask, listTasks, getTaskStats, linkMemoryToTask } from '../../src/modules/work/tasks.js';
+import { createTask, getTaskById, updateTask, deleteTask, listTasks, getTaskStats, linkMemoryToTask } from '../../src/domain/work/tasks.js';
 
 // ── 社交模块 ──
-import { getRelationships, addRelationship, getSocialNetworkOverview } from '../../src/modules/social/relationships.js';
-import { getTopicTrends, getPersonTopics, getTopicDetails } from '../../src/modules/social/topic-tracker.js';
+import { getRelationships, addRelationship, getSocialNetworkOverview } from '../../src/domain/social/relationships.js';
+import { getTopicTrends, getPersonTopics, getTopicDetails } from '../../src/domain/social/topic-tracker.js';
 
 // ── Owner ──
-import { createPerson, findPersonByName, getPersonById, listPersons, updatePerson, appendPersonInfo } from '../../src/owner/persons.js';
+import { createPerson, findPersonByName, getPersonById, listPersons, updatePerson, appendPersonInfo } from '../../src/domain/owner/persons.js';
 
 // ── 可观测性 ──
 import { createTrace, startSpan, endSpan, flushTrace, getMemoryTraces } from '../../src/common/tracing.js';
-import { checkHealth } from '../../src/lifecycle/health.js';
+import { checkHealth } from '../../src/domain/lifecycle/health.js';
 
 // ── 检索引擎 ──
-import { enrichResults } from '../../src/retrieval/search.js';
+import { enrichResults } from '../../src/domain/retrieval/search.js';
 import type { MemoryLayer } from '../../src/common/types.js';
 
 // ═══════════════════════════════════════════════════════════

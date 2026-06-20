@@ -7,16 +7,16 @@ import {
   setProfileEntry, getProfileEntry, getFullProfile,
   getProfileByCategory, getProfileByPrefix, deleteProfileEntry,
   setProfileEntries, listProfileCategories, countProfileEntries,
-} from '../../src/owner/profile.js';
+} from '../../src/domain/owner/profile.js';
 import {
   recordPreference, getPreference, getAllPreferences,
   getStrongPreferences, deletePreference,
-} from '../../src/owner/preferences.js';
+} from '../../src/domain/owner/preferences.js';
 import {
   createPerson, getPersonById, findPersonByName,
   updatePerson, appendPersonInfo, listPersons,
   deletePerson, countPersons,
-} from '../../src/owner/persons.js';
+} from '../../src/domain/owner/persons.js';
 
 beforeAll(() => {
   setupTestDb();

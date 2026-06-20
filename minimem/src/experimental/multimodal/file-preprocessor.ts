@@ -9,8 +9,8 @@ import { readFileSync, statSync, existsSync } from 'fs';
 import { resolve, extname, basename, isAbsolute, normalize } from 'path';
 import { getLogger } from '../../common/logger.js';
 import { getConfig } from '../../config/index.js';
-import type { Preprocessor, PreprocessResult, MultimodalInput } from '../../core/preprocessor/index.js';
-import { chunkContent, type ChunkStrategy } from '../../core/preprocessor/chunker.js';
+import type { Preprocessor, PreprocessResult, MultimodalInput } from '../../domain/core/preprocessor/index.js';
+import { chunkContent, type ChunkStrategy } from '../../domain/core/preprocessor/chunker.js';
 
 const log = getLogger('core:file-preprocessor');
 

@@ -7,7 +7,7 @@ import {
   authorizeToolCall,
   TOOL_RISK_MAP,
   DEFAULT_TRUSTED_CLIENT,
-} from '../../src/gateway/mcp-auth.js';
+} from '../../src/adapters/gateway/mcp-auth.js';
 import type { Client, PermissionLevel } from '../../src/common/types.js';
 
 // ── 测试用 Client 工厂 ──

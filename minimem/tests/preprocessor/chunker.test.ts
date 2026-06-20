@@ -3,7 +3,7 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest';
-import { chunkContent } from '../../src/core/preprocessor/chunker.js';
+import { chunkContent } from '../../src/domain/core/preprocessor/chunker.js';
 
 describe('chunkContent', () => {
   // ── Markdown 分块 ──
