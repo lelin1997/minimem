@@ -2,15 +2,15 @@
 // MiniMem — 巩固层（L2→L3 提炼 + L3→L4 晋升 + 冲突检测）
 // ============================================================
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now, sanitizeUserContent } from '../../common/utils.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { getVectorStore } from '../../infra/store/vectors.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { getVectorStore } from '../ports/vector-store.js';
 import { initTemperature } from '../lifecycle/index.js';
-import { addToFts } from '../../infra/store/indexes.js';
+import { addToFts } from '../ports/data-store.js';
 import { enqueueEmbeddingBackfill } from './embedding-backfill.js';
-import { observationWithL4Prompt, l4ConsistencyCheckPrompt, observationSimplePrompt, mentalModelPromotionPrompt } from '../../infra/llm/prompts.js';
+import { observationWithL4Prompt, l4ConsistencyCheckPrompt, observationSimplePrompt, mentalModelPromotionPrompt } from '../prompts/templates.js';
 import type { WorldFact, Observation, MentalModel, ObservationType, ModelType } from '../../common/types.js';
 
 import { getConfig } from '../../config/index.js';

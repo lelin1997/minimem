@@ -2,7 +2,7 @@
 // MiniMem — 版本控制：Diff 对比
 // ============================================================
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import type { Snapshot } from '../../common/types.js';
 import { getSnapshotById } from './snapshot.js';

@@ -3,7 +3,7 @@
 // ============================================================
 // REQ-008: 收集各层记忆数量、Surface Files 概览、最近 Dream 时间
 
-import { getDb } from '../../../infra/store/database.js';
+import { getDb } from '../../ports/data-store.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 
 const indexSyncer: SurfaceSyncer = {

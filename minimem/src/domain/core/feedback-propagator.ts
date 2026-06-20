@@ -3,7 +3,7 @@
 // ============================================================
 // L1 反馈能沿编译链（compilation_trace）传播到 L2/L3/L4
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { now } from '../../common/utils.js';
 

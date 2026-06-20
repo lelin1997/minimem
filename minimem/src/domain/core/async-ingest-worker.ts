@@ -4,19 +4,19 @@
 // 后台扫描 processed=0 的记忆，补跑 LLM 处理：
 //   质量门控 → 重要性评分 ∥ NER → Embedding → 标记 processed=1
 
-import { getLLM } from '../../infra/llm/index.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
 import { getLogger } from '../../common/logger.js';
 import {
   getPendingExperiences,
   markExperienceProcessed,
-} from '../../infra/store/experiences.js';
-import { addToFts, addConditionIndex } from '../../infra/store/indexes.js';
+} from '../ports/data-store.js';
+import { addToFts, addConditionIndex } from '../ports/data-store.js';
 import { initTemperature } from '../lifecycle/index.js';
 import { generateId, estimateTokens } from '../../common/utils.js';
-import { getVectorStore } from '../../infra/store/vectors.js';
-import { qualityGatePrompt, importanceScoringPrompt, nerPrompt } from '../../infra/llm/prompts.js';
+import { getVectorStore } from '../ports/vector-store.js';
+import { qualityGatePrompt, importanceScoringPrompt, nerPrompt } from '../prompts/templates.js';
 import type { Experience } from '../../common/types.js';
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { detectInjection } from './injection-guard.js';
 
 const log = getLogger('core:async-ingest-worker');

@@ -3,16 +3,16 @@
 // ============================================================
 // 模拟 REM 睡眠：随机种子 + 向量漫游 + 图遍历 + 跨层配对 + LLM 联想
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { getVectorStore } from '../../infra/store/vectors.js';
-import { traverseGraph } from '../../infra/store/graph.js';
-import { createLink } from '../../infra/store/graph.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { getVectorStore } from '../ports/vector-store.js';
+import { traverseGraph } from '../ports/graph-repository.js';
+import { createLink } from '../ports/graph-repository.js';
 import { generateId, now } from '../../common/utils.js';
-import { enqueueCompile } from '../../infra/store/knowledge-pages/compile-queue.js';
+import { enqueueCompile } from '../ports/data-store.js';
 import { getConfig } from '../../config/index.js';
-import { dreamAssociationPrompt } from '../../infra/llm/prompts.js';
+import { dreamAssociationPrompt } from '../prompts/templates.js';
 import type { MemoryLayer, LinkType } from '../../common/types.js';
 import type { DreamProfile_Dream } from './dream-engine.js';
 

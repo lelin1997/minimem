@@ -3,10 +3,10 @@
 // ============================================================
 // 负责批量提升 compression_level，以及删除已达最高压缩级别的记忆
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
-import { getVectorStore } from '../../infra/store/vectors.js';
+import { getVectorStore } from '../ports/vector-store.js';
 import { MAX_COMPRESSION_LEVEL, LAYER_PROTECTION } from '../../common/constants.js';
 import { compressToLevel } from './compressor.js';
 import type { TemperatureLevel, MemoryLayer } from '../../common/types.js';

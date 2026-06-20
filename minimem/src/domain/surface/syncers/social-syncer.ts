@@ -4,7 +4,7 @@
 // Issue-26: 从 person_profiles 同步人设画像到 social.md
 // 注意：没有独立的 relationships 表，关系数据在 person_profiles.relationships JSON 字段中
 
-import { getDb } from '../../../infra/store/database.js';
+import { getDb } from '../../ports/data-store.js';
 import { registerSyncer, type SurfaceSyncer, type SyncData } from '../sync.js';
 import { safeJsonParse } from '../../../common/utils.js';
 

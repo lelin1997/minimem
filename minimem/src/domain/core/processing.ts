@@ -5,15 +5,15 @@
 
 import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
-import { getUnprocessedExperiences } from '../../infra/store/experiences.js';
-import { createWorldFactsBatch, findFactsBySubject } from '../../infra/store/world-facts.js';
-import { addConditionIndex, addToFts } from '../../infra/store/indexes.js';
-import { createLink } from '../../infra/store/graph.js';
-import { getVectorStore } from '../../infra/store/vectors.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { factExtractionPrompt } from '../../infra/llm/prompts.js';
+import { getUnprocessedExperiences } from '../ports/data-store.js';
+import { createWorldFactsBatch, findFactsBySubject } from '../ports/data-store.js';
+import { addConditionIndex, addToFts } from '../ports/data-store.js';
+import { createLink } from '../ports/graph-repository.js';
+import { getVectorStore } from '../ports/vector-store.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { factExtractionPrompt } from '../prompts/templates.js';
 import { initTemperature } from '../lifecycle/index.js';
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { enqueueEmbeddingBackfill } from './embedding-backfill.js';
 import type { WorldFact } from '../../common/types.js';
 

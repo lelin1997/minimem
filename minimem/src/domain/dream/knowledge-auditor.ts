@@ -4,8 +4,8 @@
 // 在 Knowledge Compile 之后执行，对知识页面做质量审计
 
 import { getLogger } from '../../common/logger.js';
-import { getLLM } from '../../infra/llm/client.js';
-import { getAllKnowledgePages, updateKnowledgePageContent, updateKnowledgePageMeta } from '../../infra/store/knowledge-pages/page-store.js';
+import { getLLMClient as getLLM } from '../ports/llm-client.js';
+import { getAllKnowledgePages, updateKnowledgePageContent, updateKnowledgePageMeta } from '../ports/data-store.js';
 import { now } from '../../common/utils.js';
 
 const log = getLogger('dream:knowledge-auditor');
@@ -76,7 +76,7 @@ export async function runKnowledgeAudit(): Promise<KnowledgeAuditResult> {
     }
 
     const speculationCount = (page.content.match(/\[推测\]/g) || []).length;
-    const totalLines = page.content.split('\n').filter(l => l.trim()).length;
+    const totalLines = page.content.split('\n').filter((l: string) => l.trim()).length;
     if (totalLines > 0 && speculationCount / totalLines > MAX_SPECULATION_RATIO) {
       autoIssues.push({
         pageId: page.id, slug: page.slug, title: page.title,

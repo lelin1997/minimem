@@ -18,11 +18,9 @@ describe('extractEntities', () => {
 
   beforeEach(async () => {
     vi.resetModules();
-    // mock 依赖以避免副作用
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    // mock 依赖以避免副作用 (P3.1: domain 通过 ports 访问, 合并 mock)
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({ prepare: () => ({ all: () => [] }) }),
-    }));
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
       lookupByPrefix: () => [],
     }));
     const mod = await import('../../src/domain/recall/signals/entity-signal.js');
@@ -30,8 +28,7 @@ describe('extractEntities', () => {
   });
 
   afterEach(() => {
-    vi.doUnmock('../../src/infra/store/database.js');
-    vi.doUnmock('../../src/infra/store/indexes.js');
+    vi.doUnmock('../../src/domain/ports/data-store.js');
   });
 
   it('should extract space-separated Chinese entities', () => {
@@ -126,16 +123,16 @@ describe('extractEntities', () => {
 
 describe('computeSemanticSignal', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/infra/llm/client.js');
-    vi.doUnmock('../../src/infra/store/vectors.js');
+    vi.doUnmock('../../src/domain/ports/llm-client.js');
+    vi.doUnmock('../../src/domain/ports/vector-store.js');
   });
 
   it('should return empty when embedding is not available', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/llm/client.js', () => ({
-      getLLM: () => ({ isEmbeddingAvailable: false }),
+    vi.doMock('../../src/domain/ports/llm-client.js', () => ({
+      getLLMClient: () => ({ isEmbeddingAvailable: false }),
     }));
-    vi.doMock('../../src/infra/store/vectors.js', () => ({
+    vi.doMock('../../src/domain/ports/vector-store.js', () => ({
       getVectorStore: () => ({}),
     }));
 
@@ -151,13 +148,13 @@ describe('computeSemanticSignal', () => {
       { memoryId: 'mem2', similarity: 0.72, memoryType: 'L2' },
     ]);
 
-    vi.doMock('../../src/infra/llm/client.js', () => ({
-      getLLM: () => ({
+    vi.doMock('../../src/domain/ports/llm-client.js', () => ({
+      getLLMClient: () => ({
         isEmbeddingAvailable: true,
         embed: vi.fn().mockResolvedValue({ embedding: [0.1, 0.2, 0.3] }),
       }),
     }));
-    vi.doMock('../../src/infra/store/vectors.js', () => ({
+    vi.doMock('../../src/domain/ports/vector-store.js', () => ({
       getVectorStore: () => ({
         search: mockSearch,
       }),
@@ -183,13 +180,13 @@ describe('computeSemanticSignal', () => {
 
   it('should return empty on embed error (graceful degradation)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/llm/client.js', () => ({
-      getLLM: () => ({
+    vi.doMock('../../src/domain/ports/llm-client.js', () => ({
+      getLLMClient: () => ({
         isEmbeddingAvailable: true,
         embed: vi.fn().mockRejectedValue(new Error('API timeout')),
       }),
     }));
-    vi.doMock('../../src/infra/store/vectors.js', () => ({
+    vi.doMock('../../src/domain/ports/vector-store.js', () => ({
       getVectorStore: () => ({}),
     }));
 
@@ -202,13 +199,13 @@ describe('computeSemanticSignal', () => {
     vi.resetModules();
     const mockSearch = vi.fn().mockResolvedValue([]);
 
-    vi.doMock('../../src/infra/llm/client.js', () => ({
-      getLLM: () => ({
+    vi.doMock('../../src/domain/ports/llm-client.js', () => ({
+      getLLMClient: () => ({
         isEmbeddingAvailable: true,
         embed: vi.fn().mockResolvedValue({ embedding: [0.1] }),
       }),
     }));
-    vi.doMock('../../src/infra/store/vectors.js', () => ({
+    vi.doMock('../../src/domain/ports/vector-store.js', () => ({
       getVectorStore: () => ({
         search: mockSearch,
       }),
@@ -230,21 +227,19 @@ describe('computeSemanticSignal', () => {
 
 describe('computeEntitySignal', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/infra/store/indexes.js');
-    vi.doUnmock('../../src/infra/store/database.js');
+    vi.doUnmock('../../src/domain/ports/data-store.js');
+    vi.doUnmock('../../src/domain/ports/data-store.js');
   });
 
   it('should find entities via condition_index (lookupByPrefix)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix.includes('张三')) {
           return [{ condition_key: prefix, memory_type: 'L3', memory_id: 'mem_zs' }];
         }
         return [];
       }),
-    }));
-    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [] }),
       }),
@@ -261,10 +256,8 @@ describe('computeEntitySignal', () => {
 
   it('should find entities in world_facts via LIKE', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       lookupByPrefix: () => [],
-    }));
-    vi.doMock('../../src/infra/store/database.js', () => ({
       getDb: () => ({
         prepare: (sql: string) => ({
           all: (..._args: any[]) => {
@@ -288,8 +281,8 @@ describe('computeEntitySignal', () => {
 
   it('should return empty for empty message', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({ lookupByPrefix: () => [] }));
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({ lookupByPrefix: () => [] }));
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({ prepare: () => ({ all: () => [] }) }),
     }));
 
@@ -300,10 +293,10 @@ describe('computeEntitySignal', () => {
 
   it('should sort by score descending and limit to topK', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       lookupByPrefix: () => [],
     }));
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: (sql: string) => ({
           all: () => {
@@ -326,12 +319,12 @@ describe('computeEntitySignal', () => {
 
 describe('computeTimeSignal — Time Expression Parsing', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/infra/store/database.js');
+    vi.doUnmock('../../src/domain/ports/data-store.js');
   });
 
   it('should parse "昨天" and query DB', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_yesterday', confidence: 0.9 }] }),
       }),
@@ -345,7 +338,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should parse "上周" and query DB', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_lastweek', confidence: 0.8 }] }),
       }),
@@ -358,7 +351,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should parse "N天前"', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_3d', confidence: 0.7 }] }),
       }),
@@ -371,7 +364,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should parse "最近"', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_recent', confidence: 0.6 }] }),
       }),
@@ -384,7 +377,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should parse "yesterday" (English)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_en_yesterday', confidence: 0.8 }] }),
       }),
@@ -397,7 +390,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should parse "N weeks ago"', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_2w', confidence: 0.7 }] }),
       }),
@@ -410,7 +403,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should return empty for message without time expression (no candidates)', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [] }),
       }),
@@ -423,7 +416,7 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
   it('should boost recent memories when candidateIds provided', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/database.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       getDb: () => ({
         prepare: () => ({ all: () => [{ id: 'mem_recent' }] }),
       }),
@@ -440,14 +433,14 @@ describe('computeTimeSignal — Time Expression Parsing', () => {
 
 describe('computeGraphSignal', () => {
   afterEach(() => {
-    vi.doUnmock('../../src/infra/store/indexes.js');
+    vi.doUnmock('../../src/domain/ports/data-store.js');
     vi.doUnmock('../../src/infra/store/graph.js');
   });
 
   it('should return empty for empty entities', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({ lookupByPrefix: () => [] }));
-    vi.doMock('../../src/infra/store/graph.js', () => ({ traverseGraph: () => [] }));
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({ lookupByPrefix: () => [] }));
+    vi.doMock('../../src/domain/ports/graph-repository.js', () => ({ traverseGraph: () => [] }));
 
     const { computeGraphSignal } = await import('../../src/domain/recall/signals/graph-signal.js');
     const result = computeGraphSignal([]);
@@ -456,7 +449,7 @@ describe('computeGraphSignal', () => {
 
   it('should find 1-hop linked memories', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'person:张三') {
           return [{ condition_key: 'person:张三', memory_type: 'L3', memory_id: 'mem_zs' }];
@@ -464,7 +457,7 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/infra/store/graph.js', () => ({
+    vi.doMock('../../src/domain/ports/graph-repository.js', () => ({
       traverseGraph: vi.fn((startId: string) => {
         if (startId === 'mem_zs') {
           return [{ target_id: 'mem_linked', weight: 0.8, target_type: 'L2' }];
@@ -485,7 +478,7 @@ describe('computeGraphSignal', () => {
 
   it('should exclude source nodes from results', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'person:Alice') {
           return [{ condition_key: 'person:Alice', memory_type: 'L3', memory_id: 'mem_source' }];
@@ -493,7 +486,7 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/infra/store/graph.js', () => ({
+    vi.doMock('../../src/domain/ports/graph-repository.js', () => ({
       traverseGraph: vi.fn(() => [
         { target_id: 'mem_source', weight: 1.0, target_type: 'L3' },
         { target_id: 'mem_linked', weight: 0.6, target_type: 'L2' },
@@ -509,7 +502,7 @@ describe('computeGraphSignal', () => {
 
   it('should respect topK limit', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'topic:X') {
           return [{ condition_key: 'topic:X', memory_type: 'L3', memory_id: 'src' }];
@@ -517,7 +510,7 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/infra/store/graph.js', () => ({
+    vi.doMock('../../src/domain/ports/graph-repository.js', () => ({
       traverseGraph: vi.fn(() =>
         Array.from({ length: 20 }, (_, i) => ({
           target_id: `mem_${i}`,
@@ -534,7 +527,7 @@ describe('computeGraphSignal', () => {
 
   it('should sort results by score descending', async () => {
     vi.resetModules();
-    vi.doMock('../../src/infra/store/indexes.js', () => ({
+    vi.doMock('../../src/domain/ports/data-store.js', () => ({
       lookupByPrefix: vi.fn((prefix: string) => {
         if (prefix === 'topic:Rust') {
           return [{ condition_key: 'topic:Rust', memory_type: 'L3', memory_id: 'src' }];
@@ -542,7 +535,7 @@ describe('computeGraphSignal', () => {
         return [];
       }),
     }));
-    vi.doMock('../../src/infra/store/graph.js', () => ({
+    vi.doMock('../../src/domain/ports/graph-repository.js', () => ({
       traverseGraph: vi.fn(() => [
         { target_id: 'low', weight: 0.3, target_type: 'L1' },
         { target_id: 'high', weight: 0.9, target_type: 'L3' },

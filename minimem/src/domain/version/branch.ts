@@ -2,7 +2,7 @@
 // MiniMem — 版本控制：分支管理
 // ============================================================
 
-import { getDb } from '../../infra/store/database.js';
+import { getDb } from '../ports/data-store.js';
 import { getLogger } from '../../common/logger.js';
 import { now } from '../../common/utils.js';
 import type { Branch } from '../../common/types.js';
