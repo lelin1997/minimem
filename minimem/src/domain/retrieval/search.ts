@@ -653,9 +653,9 @@ function writebackQueryInsights(query: string, results: SearchResult[], _plan: Q
       topResults.map(r => `[${r.layer}/${r.source_strategy}] ${r.content.slice(0, 80)}`).join(' | ');
 
     try {
-      enqueueCompile('query_insight', insight, undefined, 3);
+      // KC00: query_insight 不再入队 compile_queue (跨域关联是 LLM 推测, 不是事实)
       _recentWritebacks.set(queryKey, now);
-      log.debug({ query }, 'Query insight written to compile_queue');
+      log.debug({ query }, 'Query insight recorded (not enqueued to compile_queue)');
 
       // 定期清理过期条目，防止内存泄漏
       if (_recentWritebacks.size > 200) {

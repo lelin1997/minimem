@@ -48,12 +48,8 @@ export async function extractChatSummary(
         fallback: buildFallback(messages),
       });
 
-      // 将实体和话题写入编译队列
-      if (result.entities.length > 0 || result.topics.length > 0) {
-        const content = `聊天摘要提取：${result.summary.slice(0, 200)}\n实体: ${result.entities.join(', ')}\n话题: ${result.topics.join(', ')}`;
-        enqueueCompile('query_insight', content, undefined, 4);
-      }
-
+      // KC00: query_insight 不再入队 compile_queue (灵感不是事实, 会污染知识编译)
+      // 聊天摘要只存 inspirations 表, 不进 compile_queue
       log.info({ topics: result.topics, entities: result.entities }, 'Chat summary extracted');
       return { id, ...result, created_at: timestamp };
     } catch (err) {

@@ -7,7 +7,7 @@ import { getLogger } from '../../common/logger.js';
 import { generateId, now } from '../../common/utils.js';
 import { getUnprocessedExperiences } from '../ports/data-store.js';
 import { createWorldFactsBatch, findFactsBySubject } from '../ports/data-store.js';
-import { addConditionIndex, addToFts } from '../ports/data-store.js';
+import { addConditionIndex, addToFts, enqueueCompile } from '../ports/data-store.js';
 import { createLink } from '../ports/graph-repository.js';
 import { getVectorStore } from '../ports/vector-store.js';
 import { getLLMClient as getLLM } from '../ports/llm-client.js';
@@ -125,6 +125,13 @@ export async function extractFacts(batchSize: number = 10): Promise<ProcessingRe
   }
 
   const facts = createWorldFactsBatch(dedupedFactInputs);
+
+  // KC01 前置: 新事实入队 compile_queue，供 Knowledge Compile 使用
+  for (const fact of facts) {
+    const input = dedupedFactInputs[facts.indexOf(fact)];
+    enqueueCompile('new_fact', `${fact.subject} — ${fact.predicate} — ${fact.object}`, undefined, 10); // priority 10 最高，确保 new_fact 优先于 embedding_backfill(8) 和 lint_finding(3)
+  }
+  log.info({ enqueued: facts.length }, 'KC: new facts enqueued for compile');
 
   // 建立条件索引和图关系
   let conditionKeysAdded = 0;

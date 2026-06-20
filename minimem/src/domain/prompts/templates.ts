@@ -218,19 +218,26 @@ export function knowledgePageCompilePrompt(
     {
       "action": "create_page" | "update_page" | "create_observation" | "trim_page" | "split_page" | "merge_pages" | "archive_page",
       "slug": "页面slug",
-      "title": "标题",
-      "page_type": "person|topic|project|concept|skill|place|event_series",
+      "title": "标题（必须是具体技术名词，禁止哲学化标题）",
+      "page_type": "concept|topic|project|skill|product",
       "content": "Markdown内容（含 [[backlink]] 和来源标注）",
       "summary": "一句话摘要（不超过 100 字）",
       "domain": "领域分类（如 programming/sre/life/work/health/finance/default）",
       "tags": ["标签1", "标签2"],
       "confidence": 0.8,
-      "source_memory_ids": ["来源记忆ID"],
+      "evidence_ids": ["来源事实编号，如 1, 2, 3 对应输入事实的序号"],
       "links_justification": { "link_slug": "关联原因（一句话）" },
       "trim_or_archive_reason": "修剪/归档原因（仅trim/archive操作需要）"
     }
   ]
-}`,
+}
+
+KC01 证据约束规则（严格执行）：
+- evidence_ids 必须引用输入事实的序号（如 [1], [2]）
+- 没有引用任何事实的段落，confidence 必须 ≤ 0.3
+- 整页如果没有引用任何事实，confidence 必须 ≤ 0.2
+- 禁止基于其他知识页面的推测做二次推测`,
+
     },
     {
       role: 'user',

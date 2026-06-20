@@ -269,9 +269,9 @@ export async function runDream(params?: DreamProfile_Dream): Promise<DreamResult
           // 跳过重复链接
         }
 
-        // 高置信度洞察 → 写入编译队列以供后续写入 L3
+        // KC00: query_insight 不再入队 compile_queue (dream 联想是创意性推测, 不是事实)
+        // 高置信度洞察只记录到 inspirations 表, 不污染知识编译
         if (conn.novelty >= 0.7 && conn.insight) {
-          enqueueCompile('query_insight', conn.insight, undefined, 7);
           insightsToL3++;
           highNoveltyInsights.push(conn.insight);
         }
