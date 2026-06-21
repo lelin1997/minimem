@@ -1347,11 +1347,32 @@ export function createRestApp(): Hono {
     });
   });
 
-  // 知识详情
+  // 知识详情 (含证据溯源 + 双向链接 + lint_status)
   app.get('/api/v1/knowledge/:id', async (c) => {
     const id = c.req.param('id');
     const page = getKnowledgePageById(id);
     if (!page) throw new NotFoundError('knowledge', id);
+
+    // KC01: 查证据溯源
+    const db = getDb();
+    const evidence = db.prepare(`
+      SELECT evidence_type, evidence_id, section_hint, created_at
+      FROM knowledge_page_evidence WHERE page_id = ?
+      ORDER BY created_at ASC
+    `).all(id) as Array<{ evidence_type: string; evidence_id: string; section_hint: string; created_at: string }>;
+
+    // KC02: 查双向链接 (出链 + 入链)
+    const outboundLinks = db.prepare(`
+      SELECT kp.slug, kp.title FROM knowledge_page_links kpl
+      JOIN knowledge_pages kp ON kpl.to_page_id = kp.id
+      WHERE kpl.from_page_id = ?
+    `).all(id) as Array<{ slug: string; title: string }>;
+
+    const inboundLinks = db.prepare(`
+      SELECT kp.slug, kp.title FROM knowledge_page_links kpl
+      JOIN knowledge_pages kp ON kpl.from_page_id = kp.id
+      WHERE kpl.to_page_id = ?
+    `).all(id) as Array<{ slug: string; title: string }>;
 
     return c.json({
       id: page.id,
@@ -1361,8 +1382,18 @@ export function createRestApp(): Hono {
       domain: page.domain,
       tags: page.tags,
       status: page.status,
+      lint_status: page.lint_status,
       confidence: page.confidence,
       source_memory_ids: [],
+      evidence: evidence.map(e => ({
+        type: e.evidence_type,
+        ref_id: e.evidence_id,
+        hint: e.section_hint,
+      })),
+      links: {
+        outbound: outboundLinks,
+        inbound: inboundLinks,
+      },
       created_at: page.created_at,
       updated_at: page.updated_at,
     });

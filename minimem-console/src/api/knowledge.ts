@@ -4,6 +4,18 @@ import { api } from './client';
 // ── 类型定义 ──
 
 export type KnowledgeStatus = 'active' | 'archived' | 'draft';
+export type LintStatus = 'healthy' | 'missing' | 'stale' | 'needs_review' | 'low_confidence';
+
+export interface KnowledgeEvidence {
+  type: string;
+  ref_id: string;
+  hint?: string;
+}
+
+export interface KnowledgeLink {
+  slug: string;
+  title: string;
+}
 
 export interface KnowledgeItem {
   id: string;
@@ -13,8 +25,14 @@ export interface KnowledgeItem {
   domain?: string;
   tags?: string[];
   status: KnowledgeStatus;
+  lint_status?: LintStatus;
   confidence?: number;
   source_memory_ids?: string[];
+  evidence?: KnowledgeEvidence[];
+  links?: {
+    outbound: KnowledgeLink[];
+    inbound: KnowledgeLink[];
+  };
   created_at: string;
   updated_at?: string;
 }

@@ -3,12 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import {
   BookOpen, Search, Filter, RefreshCw, X,
   Trash2, Archive, Tag, Clock, AlertCircle,
+  ShieldCheck, ShieldAlert, Link2, FileSearch,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useKnowledgeList, useKnowledgeTags,
   useDeleteKnowledge,
-  type KnowledgeItem, type KnowledgeStatus,
+  type KnowledgeItem, type KnowledgeStatus, type LintStatus,
 } from '@/api/knowledge';
 import { cn } from '@/lib/utils';
 
@@ -438,6 +439,89 @@ function KnowledgeDetail({ item, onClose, onArchive, onDelete }: {
             )}
           </div>
         </section>
+
+        {/* 审计状态 (lint_status) */}
+        {item.lint_status && (
+          <section>
+            <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              审计状态
+            </h4>
+            <div className={cn(
+              'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium',
+              item.lint_status === 'healthy' && 'bg-emerald-500/10 text-emerald-600',
+              item.lint_status === 'missing' && 'bg-amber-500/10 text-amber-600',
+              item.lint_status === 'stale' && 'bg-orange-500/10 text-orange-600',
+              item.lint_status === 'needs_review' && 'bg-blue-500/10 text-blue-600',
+              item.lint_status === 'low_confidence' && 'bg-red-500/10 text-red-600',
+            )}>
+              {item.lint_status === 'healthy' ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
+              {item.lint_status === 'healthy' ? '健康' :
+               item.lint_status === 'missing' ? '待审计' :
+               item.lint_status === 'stale' ? '过期' :
+               item.lint_status === 'needs_review' ? '需复查' : '低置信度'}
+            </div>
+          </section>
+        )}
+
+        {/* 证据溯源 (KC01) */}
+        {item.evidence && item.evidence.length > 0 && (
+          <section>
+            <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              证据溯源 ({item.evidence.length} 条)
+            </h4>
+            <div className="space-y-1.5">
+              {item.evidence.map((ev, i) => (
+                <div key={i} className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-1.5">
+                  <FileSearch className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground/60" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="rounded bg-primary/10 px-1 text-[9px] font-semibold uppercase text-primary">{ev.type}</span>
+                      <span className="truncate font-mono text-[10px] text-muted-foreground">{ev.ref_id.slice(0, 16)}</span>
+                    </div>
+                    {ev.hint && <p className="mt-0.5 text-[11px] text-foreground/70 line-clamp-2">{ev.hint}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 双向链接 (KC02) */}
+        {item.links && (item.links.outbound.length > 0 || item.links.inbound.length > 0) && (
+          <section>
+            <h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              关联页面
+            </h4>
+            <div className="space-y-2">
+              {item.links.outbound.length > 0 && (
+                <div>
+                  <span className="mb-1 block text-[10px] text-muted-foreground/50">引用了 ({item.links.outbound.length})</span>
+                  <div className="flex flex-wrap gap-1">
+                    {item.links.outbound.map((link, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 rounded-md bg-primary/5 border border-primary/10 px-2 py-0.5 text-[10px] text-primary">
+                        <Link2 className="h-2.5 w-2.5" />
+                        {link.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {item.links.inbound.length > 0 && (
+                <div>
+                  <span className="mb-1 block text-[10px] text-muted-foreground/50">被引用 ({item.links.inbound.length})</span>
+                  <div className="flex flex-wrap gap-1">
+                    {item.links.inbound.map((link, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 rounded-md bg-muted/60 border border-border/40 px-2 py-0.5 text-[10px] text-muted-foreground">
+                        <Link2 className="h-2.5 w-2.5" />
+                        {link.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* 操作按钮 */}
         <div className="flex gap-2 pt-2">
