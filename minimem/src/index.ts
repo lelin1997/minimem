@@ -133,18 +133,8 @@ async function main() {
   log.info('Scheduler started');
 
   // 7. 根据模式启动
-  if (mode === 'mcp') {
-    // MCP Server 模式 (stdio)
-    log.info('Starting MCP Server (stdio mode)...');
-    await startMCPStdio();
-  } else if (mode === 'mcp-http') {
-    // MCP Server 模式 (Streamable HTTP — 支持远程访问)
-    const mcpPort = parseInt(process.env.MINIMEM_MCP_PORT || '6678', 10);
-    const mcpHost = process.env.MINIMEM_MCP_HOST || config.server.host;
-    log.info('Starting MCP Server (Streamable HTTP mode)...');
-    await startMCPHttp(mcpPort, mcpHost);
-  } else {
-    // REST API 模式
+  // REST API 总是启动（Console 和其他客户端依赖 REST，MCP 模式下也需要）
+  if (mode !== 'mcp') {
     const app = createRestApp();
     const { host, port } = config.server;
 
@@ -160,6 +150,17 @@ async function main() {
     log.info('  GET    /api/v1/memory/search    — 搜索记忆');
     log.info('  GET    /api/v1/health           — 健康检查');
     log.info('  GET    /api/v1/admin/stats      — 统计信息');
+  }
+
+  // MCP Server (stdio 或 HTTP，按模式启动)
+  if (mode === 'mcp') {
+    log.info('Starting MCP Server (stdio mode)...');
+    await startMCPStdio();
+  } else if (mode === 'mcp-http') {
+    const mcpPort = parseInt(process.env.MINIMEM_MCP_PORT || '6678', 10);
+    const mcpHost = process.env.MINIMEM_MCP_HOST || config.server.host;
+    log.info('Starting MCP Server (Streamable HTTP mode)...');
+    await startMCPHttp(mcpPort, mcpHost);
   }
 
   // 6. 优雅关闭
