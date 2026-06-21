@@ -1,40 +1,44 @@
 // ============================================================
-// MiniMem — Data Store Port (P3.1 依赖倒置)
+// MiniMem — Data Store Ports (B01: 拆分为 4 个 Repository)
 // ============================================================
-// 聚合 domain 层需要的所有数据访问函数。
-// infra/store/* 在 app 启动时通过 registerDataStore 注册实现。
+// 原 DataStore Facade (31 方法) 拆分为:
+// - ExperienceRepository: L1 经验 CRUD
+// - FactRepository: L2 事实 + L4 心智模型
+// - IndexRepository: FTS + 条件索引
+// - KnowledgePageRepository: 知识页 + 编译队列
 //
-// 设计权衡：理想方案是每个 store 模块独立 port，但当前 domain 代码
-// 直接调这些函数，逐个抽象工作量过大。本 Port 采用 Facade 模式聚合
-// 访问入口，让 domain 不直接 import infra，同时保留后续拆分空间。
+// 保留 DataStore 接口和便捷函数向后兼容
+// domain 代码可按需 import 具体 Repository 或继续用便捷函数
 
 import type { Database as BetterSqlite3Database } from 'better-sqlite3';
 
-export interface DataStore {
-  // ── database.ts ──
-  getDb(): BetterSqlite3Database;
+// ── 拆分后的 4 个 Repository 接口 ──
 
-  // ── experiences.ts ──
+export interface ExperienceRepository {
+  getDb(): BetterSqlite3Database;
   createExperience(data: any): any;
   experienceExistsByHash(hash: string): boolean;
   getUnprocessedExperiences(limit?: number): any[];
   getPendingExperiences(limit?: number): any[];
   markExperienceProcessed(id: string): void;
+}
 
-  // ── world_facts / mental_models ──
+export interface FactRepository {
   findFactsBySubject(subject: string): any[];
   getActiveMentalModels(): any[];
   createWorldFactsBatch(facts: any[]): any[];
+}
 
-  // ── indexes.ts (FTS + 条件索引) ──
+export interface IndexRepository {
   addToFts(memoryId: string, memoryType: string, content: string, tags?: string[], conditionKeys?: string[]): void;
   removeFromFts(memoryId: string): void;
   searchFts(query: string, limit?: number): any[];
   lookupByCondition(key: string): any[];
   lookupByPrefix(prefix: string): any[];
   addConditionIndex(key: string, memoryType: string, memoryId: string): void;
+}
 
-  // ── knowledge-pages/ ──
+export interface KnowledgePageRepository {
   createKnowledgePage(input: any): any;
   getKnowledgePageBySlug(slug: string): any | null;
   getAllKnowledgePages(): any[];
@@ -47,12 +51,14 @@ export interface DataStore {
   updateKnowledgePageMeta(pageId: string, meta: any): void;
   updateLintStatus(pageId: string, status: string, stalenessScore?: number): void;
   searchKnowledgePages(query: string, limit?: number): any[];
-
-  // ── scheduler ──
   incrementMemoryCount(): void;
 }
 
-// ── Registry ──
+// ── 向后兼容: DataStore 聚合接口 (extends 4 个 Repository) ──
+
+export interface DataStore extends ExperienceRepository, FactRepository, IndexRepository, KnowledgePageRepository {}
+
+// ── Registry (统一注册, 内部拆 4 个) ──
 
 let _factory: (() => DataStore) | null = null;
 
@@ -67,7 +73,25 @@ export function getDataStore(): DataStore {
   return _factory();
 }
 
-// ── 便捷函数: 保持 domain 代码的函数式调用风格 ──
+// ── 按需获取具体 Repository ──
+
+export function getExperienceRepository(): ExperienceRepository {
+  return getDataStore();
+}
+
+export function getFactRepository(): FactRepository {
+  return getDataStore();
+}
+
+export function getIndexRepository(): IndexRepository {
+  return getDataStore();
+}
+
+export function getKnowledgePageRepository(): KnowledgePageRepository {
+  return getDataStore();
+}
+
+// ── 便捷函数: 保持 domain 代码的函数式调用风格 (向后兼容) ──
 
 export function getDb(): BetterSqlite3Database { return getDataStore().getDb(); }
 export function createExperience(data: any): any { return getDataStore().createExperience(data); }
