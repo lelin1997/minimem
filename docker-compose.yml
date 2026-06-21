@@ -1,11 +1,20 @@
+# ============================================================
 # MiniMem — Docker Compose 一键启动
+# ============================================================
 # 使用方法:
-#   1. 设置 API Key: export MINIMEM_LLM_API_KEY=your-key
-#   2. 启动: docker compose up -d
-#   3. 访问: http://localhost:6677 (REST API)
-#           http://localhost:3000 (Console, 可选)
+#   1. 设置 API Key: export MINIMEM_LLM_API_KEY=your-deepseek-key
+#   2. 一键启动: docker compose up -d
+#   3. 访问:
+#      - REST API:  http://localhost:6677
+#      - Console:   http://localhost:3000
+#   4. 查看日志: docker compose logs -f
+#   5. 停止: docker compose down
+#
+# 只启动后端 (不要 Console):
+#   docker compose up -d minimem
 
 services:
+  # ── MiniMem 后端 (REST API + MCP) ──
   minimem:
     build:
       context: .
@@ -20,6 +29,10 @@ services:
       - MINIMEM_DATA_DIR=/data
       - MINIMEM_SERVER_HOST=0.0.0.0
       - MINIMEM_SERVER_PORT=6677
+      # LLM 配置 (默认 DeepSeek, 可改)
+      # - MINIMEM_LLM_BASE_URL=https://api.deepseek.com/v1
+      # 关闭 embedding (DeepSeek 不支持, 降级 FTS-only)
+      - MINIMEM_EMBEDDING_ENABLED=false
     volumes:
       - minimem-data:/data
     healthcheck:
@@ -28,18 +41,21 @@ services:
       timeout: 5s
       retries: 3
 
-  # Console (可选, 取消注释启用)
-  # console:
-  #   build:
-  #     context: .
-  #     dockerfile: minimem-console/Dockerfile
-  #   container_name: minimem-console
-  #   restart: unless-stopped
-  #   ports:
-  #     - "3000:80"
-  #   depends_on:
-  #     minimem:
-  #       condition: service_healthy
+  # ── MiniMem Console (前端 + 代理服务) ──
+  console:
+    build:
+      context: .
+      dockerfile: minimem-console/Dockerfile
+    container_name: minimem-console
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - CONSOLE_PORT=3000
+      - MINIMEM_API_URL=http://minimem:6677
+    depends_on:
+      minimem:
+        condition: service_healthy
 
 volumes:
   minimem-data:
