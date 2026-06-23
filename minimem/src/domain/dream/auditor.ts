@@ -95,7 +95,23 @@ export function runAudit(sinceDate?: string): AuditResult {
   }
 
   // 2. 检测事实冲突（同主谓不同宾）
+  // 策略：先计算每个 (subject, predicate) 的基数，3+ 个 distinct objects 视为 1:N 自然多值，不报冲突
   const conflicts: ConflictItem[] = [];
+  const cardinalityMap = new Map<string, number>();
+  const cardinalityRows = db.prepare(`
+    SELECT subject, predicate, COUNT(DISTINCT object) as card
+    FROM world_facts
+    WHERE branch = 'main' AND confidence >= 0.4
+    GROUP BY subject, predicate
+  `).all() as Array<{ subject: string; predicate: string; card: number }>;
+
+  for (const row of cardinalityRows) {
+    if (row.card >= 3) {
+      cardinalityMap.set(`${row.subject}::${row.predicate}`, row.card);
+    }
+  }
+  const multiValuedCount = cardinalityMap.size;
+
   const factConflicts = db.prepare(`
     SELECT a.id as id_a, b.id as id_b, a.subject, a.predicate, a.object as obj_a, b.object as obj_b
     FROM world_facts a
@@ -106,12 +122,17 @@ export function runAudit(sinceDate?: string): AuditResult {
   `).all() as Array<{ id_a: string; id_b: string; subject: string; predicate: string; obj_a: string; obj_b: string }>;
 
   for (const c of factConflicts) {
+    // 跳过天然多值的 1:N 关系（同一 subject+predicate 有 3+ 个不同值）
+    if (cardinalityMap.has(`${c.subject}::${c.predicate}`)) continue;
     conflicts.push({
       id_a: c.id_a,
       id_b: c.id_b,
       description: `"${c.subject} ${c.predicate}" has conflicting values: "${c.obj_a}" vs "${c.obj_b}"`,
     });
   }
+
+  log.info({ multiValuedPredicates: multiValuedCount, rawConflicts: factConflicts.length, filteredConflicts: conflicts.length },
+    'Phase 1: Conflict detection (cardinality-aware)');
 
   // 3. Knowledge Page Lint
   const lintIssues: LintIssue[] = [];
