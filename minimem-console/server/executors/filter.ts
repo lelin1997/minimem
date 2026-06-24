@@ -48,10 +48,12 @@ export const filterExecutor: NodeExecutor = async (node, inputs, ctx, templateDa
  *   - field >= value && other_field < value
  */
 function buildFilterFunction(condition: string): (item: any) => boolean {
-  // 安全检查：不允许有害的操作
+  // 安全检查：不允许有害的操作（使用词边界匹配，避免如 importance 包含 import 的误报）
   const forbidden = ['require', 'import', 'eval', 'Function', 'process', 'global', '__proto__', 'constructor'];
   for (const word of forbidden) {
-    if (condition.includes(word)) {
+    // 用词边界 \b 确保是独立标识符而非子串（如 importance 不会误判含 import）
+    const boundaryRegex = new RegExp(String.raw`\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\b`);
+    if (boundaryRegex.test(condition)) {
       throw new Error(`条件表达式中包含不允许的关键词: ${word}`);
     }
   }

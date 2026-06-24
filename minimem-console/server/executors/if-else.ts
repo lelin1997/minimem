@@ -15,10 +15,12 @@ export const ifElseExecutor: NodeExecutor = async (node, inputs, ctx, templateDa
 
   const inputData = inputs.in;
 
-  // 安全检查
+  // 安全检查（使用词边界匹配，避免如 importance 包含 import 的误报）
   const forbidden = ['require', 'import', 'eval', 'Function', 'process', 'global', '__proto__', 'constructor'];
   for (const word of forbidden) {
-    if (condition.includes(word)) {
+    // 用词边界 \b 确保是独立标识符而非子串
+    const boundaryRegex = new RegExp(String.raw`\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\b`);
+    if (boundaryRegex.test(condition)) {
       throw new Error(`条件表达式中包含不允许的关键词: ${word}`);
     }
   }
